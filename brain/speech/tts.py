@@ -162,6 +162,9 @@ class TTSAdapter:
 
         except Exception as exc:
             logger.warning("AivisSpeech/VOICEVOX unavailable (%s). Using Windows native SAPI5 TTS fallback.", exc)
+            fallback_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False, dir=str(self._cache_dir)).name
+            fallback_path = Path(fallback_wav)
+
             # Try Windows SAPI5 native spoken voice synthesis
             try:
                 import win32com.client
@@ -179,12 +182,12 @@ class TTSAdapter:
                 if chosen_voice:
                     speaker.Voice = chosen_voice
 
-                stream.Open(str(wav_path), 3, False)  # 3 = SSFMCreateForWrite
+                stream.Open(str(fallback_path), 3, False)  # 3 = SSFMCreateForWrite
                 speaker.AudioOutputStream = stream
                 speaker.Speak(text)
                 stream.Close()
-                logger.info("Windows SAPI5 synthesized spoken voice (%s): %s", getattr(speaker.Voice, "GetDescription", lambda: "default")(), wav_path.name)
-                return wav_path
+                logger.info("Windows SAPI5 synthesized spoken voice (%s): %s", getattr(speaker.Voice, "GetDescription", lambda: "default")(), fallback_path.name)
+                return fallback_path
             except Exception as sapi_exc:
                 logger.debug("Windows SAPI5 fallback failed: %s. Generating chime.", sapi_exc)
 
@@ -197,7 +200,7 @@ class TTSAdapter:
             duration = max(0.8, min(len(text) * 0.05, 3.0))
             num_samples = int(sample_rate * duration)
 
-            with wave.open(str(wav_path), "wb") as wf:
+            with wave.open(str(fallback_path), "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(sample_rate)
@@ -211,4 +214,4 @@ class TTSAdapter:
                     data.extend(struct.pack("<h", val))
                 wf.writeframes(data)
 
-            return wav_path
+            return fallback_path
