@@ -249,6 +249,18 @@ async def main() -> None:
             "error": None,
         })
 
+    @app.get("/awareness/foreground-window")
+    async def get_foreground_window(screen_width: int = 1920, screen_height: int = 1080) -> JSONResponse:
+        from dataclasses import asdict
+        from brain.tools.window_awareness import get_foreground_window_info, is_likely_fullscreen_content
+
+        info = await asyncio.to_thread(get_foreground_window_info, screen_width, screen_height)
+        is_fullscreen = is_likely_fullscreen_content(info)
+        return JSONResponse({
+            "window": asdict(info) if info else None,
+            "is_likely_fullscreen_content": is_fullscreen,
+        })
+
     @app.post("/emergency/pause")
     async def emergency_pause(request: Request) -> JSONResponse:
         body = await request.json() if request.headers.get("content-type") == "application/json" else {}
