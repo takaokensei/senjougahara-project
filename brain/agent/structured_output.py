@@ -19,7 +19,7 @@ import re
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Emotion(str, Enum):
@@ -45,22 +45,34 @@ class StructuredResponse(BaseModel):
     """
     The structured output every LLM response must conform to.
     
-    - text: The spoken response text (will be sent to TTS).
+    - text: The response text displayed on screen.
+    - japanese_text: Spoken Japanese text for AivisSpeech.
+    - portuguese_translation: Translation in Brazilian Portuguese.
     - emotion: The facial expression to display during speech.
     - animation: VRMA animation clip name (must exist in avatar/assets/animations/).
     - priority: Controls interrupt/queue behavior in the avatar state machine.
     """
-    text: str = Field(..., min_length=1, description="The spoken response (sent to TTS).")
+    text: str = Field(default="", description="The spoken/displayed response.")
+    japanese_text: str | None = Field(default=None, description="Spoken Japanese text for AivisSpeech.")
+    portuguese_translation: str | None = Field(default=None, description="Portuguese translation for display.")
     emotion: Emotion = Field(default=Emotion.NEUTRAL, description="Facial expression preset.")
     animation: str = Field(default="idle", description="VRMA animation clip name.")
     priority: Priority = Field(default=Priority.NORMAL, description="Response priority.")
 
-    @field_validator("text")
-    @classmethod
-    def text_must_not_be_blank(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("text must not be blank")
-        return v.strip()
+    @model_validator(mode="after")
+    def populate_or_validate_text(self) -> StructuredResponse:
+        if not self.text or not self.text.strip():
+            if self.japanese_text and self.portuguese_translation:
+                self.text = f"{self.japanese_text} ({self.portuguese_translation})"
+            elif self.japanese_text:
+                self.text = self.japanese_text
+            elif self.portuguese_translation:
+                self.text = self.portuguese_translation
+            else:
+                raise ValueError("text must not be blank")
+        else:
+            self.text = self.text.strip()
+        return self
 
     @field_validator("emotion", mode="before")
     @classmethod
@@ -142,11 +154,11 @@ def parse_structured_response(raw: str) -> StructuredResponse:
         except Exception:
             pass
 
-    # Attempt 3: search all { ... } blocks for a valid StructuredResponse (has "text" key)
+    # Attempt 3: search all { ... } blocks for a valid StructuredResponse (has "text" or "japanese_text" key)
     for match in re.finditer(r"\{[\s\S]*?\}", raw):
         try:
             obj = json.loads(match.group(0))
-            if isinstance(obj, dict) and "text" in obj:
+            if isinstance(obj, dict) and ("text" in obj or "japanese_text" in obj or "portuguese_translation" in obj):
                 return StructuredResponse.model_validate(obj)
         except Exception:
             pass
