@@ -161,12 +161,38 @@ class TTSAdapter:
                 return wav_path
 
         except Exception as exc:
-            logger.warning("TTS engine unavailable (%s). Generating fallback audio file.", exc)
+            logger.warning("AivisSpeech/VOICEVOX unavailable (%s). Using Windows native SAPI5 TTS fallback.", exc)
+            # Try Windows SAPI5 native spoken voice synthesis
+            try:
+                import win32com.client
+                speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                stream = win32com.client.Dispatch("SAPI.SpFileStream")
+                
+                # Choose best available voice (Haruka -> Maria -> Zira)
+                voices = speaker.GetVoices()
+                chosen_voice = None
+                for v in voices:
+                    desc = v.GetDescription()
+                    if "Haruka" in desc or "Maria" in desc or "Zira" in desc:
+                        chosen_voice = v
+                        break
+                if chosen_voice:
+                    speaker.Voice = chosen_voice
+
+                stream.Open(str(wav_path), 3, False)  # 3 = SSFMCreateForWrite
+                speaker.AudioOutputStream = stream
+                speaker.Speak(text)
+                stream.Close()
+                logger.info("Windows SAPI5 synthesized spoken voice (%s): %s", getattr(speaker.Voice, "GetDescription", lambda: "default")(), wav_path.name)
+                return wav_path
+            except Exception as sapi_exc:
+                logger.debug("Windows SAPI5 fallback failed: %s. Generating chime.", sapi_exc)
+
+            # Generate a pleasant decaying notification chime (C6-E6-G6 arpeggio) as last resort
             import wave
             import struct
             import math
 
-            # Generate a pleasant decaying notification chime (C6-E6-G6 arpeggio)
             sample_rate = 16000
             duration = max(0.8, min(len(text) * 0.05, 3.0))
             num_samples = int(sample_rate * duration)
