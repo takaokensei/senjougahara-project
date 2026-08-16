@@ -98,6 +98,7 @@ async function init() {
     vrmRenderer.startAnimation();
     setupIPCListeners();
     setupCanvasClick(canvas);
+    setupMouseHoverTracking();
     restoreWindowBounds();
     setupBeforeUnload();
     console.log('[Senjougahara] VRM Renderer initialized successfully');
@@ -112,6 +113,23 @@ async function init() {
       `<em>(Press <kbd>Ctrl+Shift+I</kbd> or <kbd>F12</kbd> for DevTools)</em>`
     );
   }
+}
+
+function setupMouseHoverTracking() {
+  let lastIgnoreState = true;
+  window.addEventListener('mousemove', (e) => {
+    if (!vrmRenderer) return;
+    const currentPos = vrmRenderer.getLocomotion().getCurrentPosition();
+    const dx = Math.abs(e.clientX - currentPos.x);
+    const dy = Math.abs(e.clientY - currentPos.y);
+    const isOverCharacter = dx < 150 && dy < 260;
+
+    const shouldIgnore = !isOverCharacter;
+    if (shouldIgnore !== lastIgnoreState) {
+      lastIgnoreState = shouldIgnore;
+      (window as any).vrmAPI?.setIgnoreMouseEvents?.(shouldIgnore, true);
+    }
+  });
 }
 
 function setupCanvasClick(canvas: HTMLCanvasElement) {

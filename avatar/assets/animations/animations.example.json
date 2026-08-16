@@ -106,6 +106,24 @@
       "returnToIdle": true,
       "category": "emotion",
       "description": "応援"
+    },
+    {
+      "name": "walk",
+      "file": "walk.vrma",
+      "loop": true,
+      "fadeTime": 0.3,
+      "returnToIdle": false,
+      "category": "locomotion",
+      "description": "andando"
+    },
+    {
+      "name": "run",
+      "file": "run.vrma",
+      "loop": true,
+      "fadeTime": 0.2,
+      "returnToIdle": false,
+      "category": "locomotion",
+      "description": "correndo"
     }
   ]
 }

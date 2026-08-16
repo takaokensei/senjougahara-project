@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AnimationController } from './AnimationController.js';
 import { ExpressionController } from './ExpressionController.js';
+import { LocomotionController } from './controllers/LocomotionController.js';
 
 export class VRMRenderer {
   private scene: THREE.Scene;
@@ -15,6 +16,7 @@ export class VRMRenderer {
 
   private animation: AnimationController | null = null;
   private expression: ExpressionController | null = null;
+  private locomotion: LocomotionController;
 
   private readonly animationsConfigPath: string;
   private readonly storagePrefix: string;
@@ -42,6 +44,11 @@ export class VRMRenderer {
     this.camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.set(position.x, position.y, position.z);
     this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
+
+    this.locomotion = new LocomotionController(
+      { fov, distance: Math.abs(position.z) || 1.5, targetY: lookAt.y },
+      { x: Math.round(window.innerWidth * 0.5), y: Math.round(window.innerHeight * 0.65) }
+    );
 
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -80,14 +87,17 @@ export class VRMRenderer {
       this.animation = new AnimationController(this.vrm, mixer);
       this.expression = new ExpressionController(this.vrm);
 
+      this.locomotion.setVRM(this.vrm);
+      this.locomotion.setAnimationController(this.animation);
+
       try {
         await this.animation.loadAll(this.animationsConfigPath);
       } catch (error) {
         console.error('[desktop-mascot-mcp] Failed to load animations (continuing without):', error);
       }
 
-      // アニメーション読み込みの成否にかかわらず初期状態を適用
       this.animation.applyInitialState();
+      this.locomotion.startWanderLoop();
 
       console.log(`[desktop-mascot-mcp] VRM model loaded successfully: ${url}`);
     } catch (err) {
@@ -132,10 +142,15 @@ export class VRMRenderer {
     return this.vrm;
   }
 
+  getLocomotion(): LocomotionController {
+    return this.locomotion;
+  }
+
   private onWindowResize(): void {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.locomotion.updateBounds(window.innerWidth, window.innerHeight);
   }
 
   saveCameraState(): void {
