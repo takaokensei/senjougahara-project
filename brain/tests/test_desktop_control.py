@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tests/test_desktop_control.py
 
 Unit tests for desktop control and browser executable path resolution.
@@ -58,3 +58,61 @@ class TestDesktopControlResolution:
             result = await launch_app("chrome", ["https://youtube.com"])
             assert "PID: 9999" in result
             mock_pywinauto.return_value.start.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_launch_app_quotes_path_with_spaces(self):
+        """Executable paths containing spaces must be wrapped in quotes so Windows
+        CreateProcess correctly identifies where the path ends and arguments begin.
+        For example, 'C:\\Program Files\\...' must become
+        '"C:\\Program Files\\..." https://...' not 'C:\\Program Files\\... https://...'
+        """
+        mock_app = MagicMock()
+        mock_app.process = 1234
+
+        spaced_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+        captured_cmd: list[str] = []
+
+        def capture_start(cmd: str, **_kwargs):
+            captured_cmd.append(cmd)
+            return mock_app
+
+        with patch("brain.tools.desktop_control._resolve_app_path", return_value=spaced_path), \
+             patch("pywinauto.Application") as mock_pywinauto:
+            mock_pywinauto.return_value.start.side_effect = capture_start
+            result = await launch_app("chrome", ["https://youtube.com"])
+
+        assert "PID: 1234" in result
+        assert captured_cmd, "pywinauto.Application().start() should have been called"
+        cmd = captured_cmd[0]
+        # The quoted path must appear at the start: "C:\Program Files\..."
+        assert cmd.startswith(f'"{spaced_path}"'), (
+            f"Expected command to start with quoted path, got: {cmd!r}"
+        )
+        # Arguments must be appended after the quoted path
+        assert "https://youtube.com" in cmd
+
+    @pytest.mark.asyncio
+    async def test_launch_app_no_quotes_for_path_without_spaces(self):
+        """Paths without spaces must NOT get extra quoting (they work fine unquoted
+        and extra quotes can confuse some Windows launchers)."""
+        mock_app = MagicMock()
+        mock_app.process = 5678
+
+        no_space_path = r"C:\Windows\System32\notepad.exe"
+        captured_cmd: list[str] = []
+
+        def capture_start(cmd: str, **_kwargs):
+            captured_cmd.append(cmd)
+            return mock_app
+
+        with patch("brain.tools.desktop_control._resolve_app_path", return_value=no_space_path), \
+             patch("pywinauto.Application") as mock_pywinauto:
+            mock_pywinauto.return_value.start.side_effect = capture_start
+            result = await launch_app("notepad")
+
+        assert "PID: 5678" in result
+        cmd = captured_cmd[0]
+        assert cmd == no_space_path, (
+            f"Path without spaces should be unquoted, got: {cmd!r}"
+        )
+
