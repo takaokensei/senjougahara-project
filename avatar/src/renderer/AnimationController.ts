@@ -113,6 +113,12 @@ export class AnimationController {
     console.log(`[desktop-mascot-mcp] Loaded ${this.animations.size} animations`);
   }
 
+  private isTransitioningToDefaultPose = false;
+  private transitionStartTime = 0;
+  private transitionDuration = 0.5;
+  private startBoneRotations: Map<string, { x: number; y: number; z: number }> = new Map();
+  private idleClock = 0;
+
   /**
    * idle アニメーションがあれば再生、なければデフォルトポーズを適用する。
    * アニメーション読み込み後に必ず呼ぶ。
@@ -122,6 +128,7 @@ export class AnimationController {
       this.play('idle', false);
     } else {
       console.warn('[desktop-mascot-mcp] No idle animation found - applying default pose');
+      this.currentAnimation = 'idle';
       this.setDefaultPose();
     }
     this.scheduleIdleVariation();
@@ -160,10 +167,24 @@ export class AnimationController {
     const targetState = this.animations.get(name);
     const currentState = this.animations.get(this.currentAnimation);
 
+    // Fallback when returning to or playing 'idle' without an idle animation clip
+    if (name === 'idle' && !targetState) {
+      if (currentState) {
+        const fadeTime = 0.5;
+        currentState.action.fadeOut(fadeTime);
+      }
+      this.currentAnimation = 'idle';
+      this.startDefaultPoseTransition(0.5);
+      if (resetTimer) this.resetIdleTimer();
+      return;
+    }
+
     if (!targetState) {
       console.warn(`[desktop-mascot-mcp] Animation not found: ${name}`);
       return;
     }
+
+    this.isTransitioningToDefaultPose = false;
 
     if (!currentState) {
       targetState.action.reset().play();
@@ -193,10 +214,91 @@ export class AnimationController {
 
   private setDefaultPose(): void {
     if (!this.vrm.humanoid) return;
+    try {
+      (this.vrm.humanoid as any).resetNormalizedPose?.();
+    } catch {
+      // ignore
+    }
     const leftUpperArm = this.vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
     const rightUpperArm = this.vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
-    if (leftUpperArm) leftUpperArm.rotation.z = Math.PI / 3;
-    if (rightUpperArm) rightUpperArm.rotation.z = -Math.PI / 3;
+    if (leftUpperArm && leftUpperArm.rotation) leftUpperArm.rotation.z = Math.PI / 3;
+    if (rightUpperArm && rightUpperArm.rotation) rightUpperArm.rotation.z = -Math.PI / 3;
+  }
+
+  private startDefaultPoseTransition(durationSec: number = 0.5): void {
+    this.isTransitioningToDefaultPose = true;
+    this.transitionStartTime = performance.now();
+    this.transitionDuration = durationSec;
+
+    this.startBoneRotations.clear();
+    if (!this.vrm.humanoid) return;
+
+    const boneNames = [
+      'leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm',
+      'leftHand', 'rightHand', 'head', 'neck', 'spine', 'chest'
+    ];
+
+    for (const name of boneNames) {
+      const node = this.vrm.humanoid.getNormalizedBoneNode(name as any);
+      if (node && node.rotation) {
+        this.startBoneRotations.set(name, {
+          x: node.rotation.x,
+          y: node.rotation.y,
+          z: node.rotation.z,
+        });
+      }
+    }
+  }
+
+  private updateDefaultPoseTransition(): void {
+    if (!this.vrm.humanoid) return;
+
+    if (this.isTransitioningToDefaultPose) {
+      const elapsed = (performance.now() - this.transitionStartTime) / 1000;
+      const progress = Math.min(1.0, elapsed / this.transitionDuration);
+      // Cubic ease out
+      const t = 1 - Math.pow(1 - progress, 3);
+
+      const targetRotations: Record<string, { x: number; y: number; z: number }> = {
+        leftUpperArm: { x: 0, y: 0, z: Math.PI / 3 },
+        rightUpperArm: { x: 0, y: 0, z: -Math.PI / 3 },
+        leftLowerArm: { x: 0, y: 0, z: 0 },
+        rightLowerArm: { x: 0, y: 0, z: 0 },
+        leftHand: { x: 0, y: 0, z: 0 },
+        rightHand: { x: 0, y: 0, z: 0 },
+        head: { x: 0, y: 0, z: 0 },
+        neck: { x: 0, y: 0, z: 0 },
+        spine: { x: 0, y: 0, z: 0 },
+        chest: { x: 0, y: 0, z: 0 },
+      };
+
+      for (const [name, target] of Object.entries(targetRotations)) {
+        const node = this.vrm.humanoid.getNormalizedBoneNode(name as any);
+        const start = this.startBoneRotations.get(name) || { x: 0, y: 0, z: 0 };
+        if (node && node.rotation) {
+          node.rotation.x = start.x + (target.x - start.x) * t;
+          node.rotation.y = start.y + (target.y - start.y) * t;
+          node.rotation.z = start.z + (target.z - start.z) * t;
+        }
+      }
+
+      if (progress >= 1.0) {
+        this.isTransitioningToDefaultPose = false;
+        this.setDefaultPose();
+      }
+    } else if (this.currentAnimation === 'idle' && !this.animations.has('idle')) {
+      // Subtle procedural breathing micro-motion while resting in idle
+      const breath = Math.sin(this.idleClock * 2.0);
+      const chest = this.vrm.humanoid.getNormalizedBoneNode('chest');
+      const spine = this.vrm.humanoid.getNormalizedBoneNode('spine');
+      const leftUpperArm = this.vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+      const rightUpperArm = this.vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+
+      if (chest && chest.rotation) chest.rotation.x = breath * 0.015;
+      if (spine && spine.rotation) spine.rotation.x = breath * 0.01;
+      if (leftUpperArm && leftUpperArm.rotation) leftUpperArm.rotation.z = (Math.PI / 3) + (breath * 0.01);
+      if (rightUpperArm && rightUpperArm.rotation) rightUpperArm.rotation.z = (-Math.PI / 3) - (breath * 0.01);
+    }
   }
 
   private scheduleIdleVariation(): void {
@@ -228,6 +330,8 @@ export class AnimationController {
    */
   update(delta: number): void {
     this.mixer.update(delta);
+    this.idleClock += delta;
+    this.updateDefaultPoseTransition();
   }
 
   dispose(): void {

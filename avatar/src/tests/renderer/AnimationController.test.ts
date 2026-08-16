@@ -242,6 +242,23 @@ describe('play', () => {
     expect(mixer.actions[1].fadeIn).toHaveBeenCalledWith(0.5);
     expect(mixer.actions[0].fadeOut).toHaveBeenCalledWith(0.5);
   });
+
+  it('idle クリップが無い場合でも play("idle") で現在のアクションをフェードアウトしてデフォルトポーズへ戻る', async () => {
+    stubConfigFetch({ animations: [
+      animConfig({ name: 'wave', file: 'wave.vrma', loop: false }),
+    ] });
+    const mixer = makeMixer();
+    const { vrm } = makeVrm();
+    const controller = new AnimationController(vrm, mixer as never, okLoader);
+    await controller.loadAll('x.json');
+
+    controller.play('wave');
+    expect(mixer.actions[0].play).toHaveBeenCalled();
+
+    // Now return to idle (which has no vrma clip)
+    controller.play('idle');
+    expect(mixer.actions[0].fadeOut).toHaveBeenCalledWith(0.5);
+  });
 });
 
 describe('アイドルバリエーション', () => {
