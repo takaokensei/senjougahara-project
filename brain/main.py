@@ -271,6 +271,25 @@ async def main() -> None:
         await authority_learner.mark_suggestion_sent(pattern_id)
         return JSONResponse({"status": "promoted", "tool_name": tool_name, "new_tier": "LOW"})
 
+    @app.post("/permissions/quick-override")
+    async def quick_override(request: Request) -> JSONResponse:
+        from brain.permissions.quick_override import apply_quick_override
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        action_category = body.get("action_category", "").strip()
+        allow = bool(body.get("allow", True))
+        if not action_category:
+            return JSONResponse({"error": "action_category required"}, status_code=400)
+
+        permission_engine._policy_overrides = apply_quick_override(
+            permission_engine._policy_overrides, action_category, allow
+        )
+        return JSONResponse({
+            "status": "applied",
+            "action_category": action_category,
+            "allow": allow,
+            "overrides": permission_engine._policy_overrides,
+        })
+
     @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:
         body = await request.json()

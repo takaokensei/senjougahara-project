@@ -104,10 +104,20 @@ class PermissionEngine:
         if tool_name in NEVER_AUTO_APPROVE_TOOLS:
             return RISK_HIGH
 
+        # 1. Direct tool override
         override = self._policy_overrides.get(tool_name)
         if override and override in (RISK_LOW, RISK_MEDIUM, RISK_HIGH):
-            # Overrides can only be specified in the known tier set
             return override
+
+        # 2. Category override (e.g. "desktop.*" or "desktop")
+        try:
+            from brain.permissions.learning import infer_action_category
+            cat = infer_action_category(tool_name)
+            cat_override = self._policy_overrides.get(cat) or self._policy_overrides.get(f"{cat}.*")
+            if cat_override and cat_override in (RISK_LOW, RISK_MEDIUM, RISK_HIGH):
+                return cat_override
+        except Exception:
+            pass
 
         return base_risk
 
