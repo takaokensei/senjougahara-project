@@ -51,7 +51,19 @@ npm --prefix avatar run build:electron
 > [!NOTE]
 > Run `npm --prefix avatar run build:electron` whenever you modify TypeScript files in `avatar/` to recompile `dist/`.
 
-### 3. Configure
+### 3. Add a VRM 3D Model (Required for Visual Character)
+
+Place any `.vrm` 3D character model into `avatar/assets/models/AliciaSolid.vrm` (or specify your custom model filename in `avatar/dist/renderer/config.json`).
+
+- **Free / CC VRM Models**:
+  - [VRoid Hub](https://hub.vroid.com/) (filter by "Free commercial use")
+  - [BOOTH.pm](https://booth.pm/en) (search for `"VRM free"`)
+  - [UniVRM Alicia Solid](https://github.com/dwango/UniVRM/tree/master/Assets/VRM/Models/AliciaSolid) (standard sample model)
+
+> [!TIP]
+> If no `.vrm` file is present in `avatar/assets/models/`, the Electron window opens with a helper badge prompting you to add a model.
+
+### 4. Configure
 
 ```powershell
 copy config\.env.example .env
@@ -59,7 +71,7 @@ copy config\config.example.yaml config\config.yaml
 # Edit config/config.yaml (defaults work out of the box with Ollama & AivisSpeech)
 ```
 
-### 4. Launch Senjougahara
+### 5. Launch Senjougahara
 
 ```powershell
 # Run the complete system (Brain + Voice Pipeline + Avatar)

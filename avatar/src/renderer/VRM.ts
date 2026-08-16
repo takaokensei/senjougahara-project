@@ -1,4 +1,4 @@
-﻿import { VRMRenderer } from './VRMRenderer.js';
+import { VRMRenderer } from './VRMRenderer.js';
 
 // Declare extended vrmAPI interface
 declare global {
@@ -67,6 +67,15 @@ async function loadConfig(): Promise<Config> {
   }
 }
 
+function showErrorOverlay(title: string, message: string): void {
+  const overlay = document.getElementById('error-overlay');
+  const msgEl = document.getElementById('error-msg');
+  if (overlay) {
+    overlay.innerHTML = `<strong>${title}</strong><span>${message}</span>`;
+    overlay.style.display = 'block';
+  }
+}
+
 async function init() {
   const canvas = document.getElementById('canvas') as HTMLCanvasElement;
   if (!canvas) {
@@ -91,9 +100,17 @@ async function init() {
     setupCanvasClick(canvas);
     restoreWindowBounds();
     setupBeforeUnload();
-    console.log('[Senjougahara] VRM Renderer initialized');
-  } catch (error) {
-    console.error('Failed to initialize VRM Renderer:', error);
+    console.log('[Senjougahara] VRM Renderer initialized successfully');
+  } catch (error: any) {
+    console.error('[Senjougahara] Failed to initialize VRM Renderer:', error);
+    const modelPath = config?.vrm?.modelPath || './assets/models/AliciaSolid.vrm';
+    showErrorOverlay(
+      '⚠️ VRM Model Not Found',
+      `Could not load <code>${modelPath}</code><br><br>` +
+      `Place a <code>.vrm</code> file (e.g. <code>AliciaSolid.vrm</code>) into:<br>` +
+      `📁 <code>avatar/assets/models/</code><br><br>` +
+      `<em>(Press <kbd>Ctrl+Shift+I</kbd> or <kbd>F12</kbd> for DevTools)</em>`
+    );
   }
 }
 

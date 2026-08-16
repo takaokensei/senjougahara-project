@@ -1,4 +1,4 @@
-﻿# Setup Guide
+# Setup Guide
 
 ## Prerequisites
 
@@ -15,65 +15,49 @@
 
 ## Step-by-Step Installation
 
-### 1. Fork/clone the avatar base
-
-From the project root (`C:\senjougahara-project\`):
+### 1. Set up the Python brain
 
 ```powershell
-git clone https://github.com/rennosuke-haresu/desktop-mascot-mcp avatar
+pip install -r brain\requirements.txt
+
+# Install Playwright's Chromium browser (used for browser automation)
+playwright install chromium
 ```
 
-Inspect the clone before modifying anything:
+### 2. Set up the Avatar (Electron)
+
 ```powershell
-Get-Content avatar\README.md
 npm --prefix avatar install
-# Verify it runs unmodified first:
-npm --prefix avatar run start:electron
+npm --prefix avatar run build:electron
 ```
 
-Once verified, the new `bridge-server.ts` is already located at `avatar/src/main/bridge-server.ts`.
+### 3. Add a VRM 3D Model
 
-### 2. Set up the Python brain
+Place a `.vrm` character model file into `avatar\assets\models\AliciaSolid.vrm` (or specify your custom filename in `avatar\dist\renderer\config.json`).
 
-```powershell
-python -m venv brain\.venv
-brain\.venv\Scripts\pip install -r brain\requirements.txt
+Free / CC VRM models:
+- [VRoid Hub](https://hub.vroid.com/) (filter by "Free commercial use")
+- [BOOTH.pm](https://booth.pm/en) (search "VRM free")
+- [UniVRM Alicia Solid](https://github.com/dwango/UniVRM/tree/master/Assets/VRM/Models/AliciaSolid)
 
-# Install Playwright's Chromium browser (used for browser automation in Phase 3)
-brain\.venv\Scripts\playwright install chromium
-```
+*(If no VRM file is present, the window will open with a helper badge prompting you to add a model).*
 
-### 3. Install and run AivisSpeech
+### 4. Install and run AivisSpeech
 
 1. Download AivisSpeech from https://aivis-project.com/
 2. Install and launch it
 3. Verify it is running: `curl http://127.0.0.1:10101/version`
 
-Alternatively, use VOICEVOX (default port: 50021 — update `TTS_ENGINE_BASE_URL` in `.env`).
-
-### 4. Configure the project
+### 5. Configure the project
 
 ```powershell
 # Create your local .env (gitignored — never commit this)
 copy config\.env.example .env
 
-# Edit .env and fill in:
-# ANTHROPIC_API_KEY=sk-ant-...
-# TTS_ENGINE_BASE_URL=http://127.0.0.1:10101  (AivisSpeech)
-# TTS_SPEAKER_ID=888753760                     (check AivisSpeech speaker list)
-
 # Create your local config.yaml
 copy config\config.example.yaml config\config.yaml
-# Edit as needed (personality profile, hotkey, etc.)
+# Edit config/config.yaml as needed (Ollama/Anthropic, hotkey, etc.)
 ```
-
-### 5. Add a VRM model
-
-Place a `.vrm` model file in `avatar\assets\models\`. Free/CC models:
-- [VRoid Hub](https://hub.vroid.com/) (filter by free commercial license)
-- [BOOTH](https://booth.pm/) (search "VRM free")
-
-Update the model path in `avatar\src\renderer\` (see desktop-mascot-mcp's README for model loading config).
 
 ### 6. Run in development mode
 
@@ -81,26 +65,25 @@ Update the model path in `avatar\src\renderer\` (see desktop-mascot-mcp's README
 .\scripts\dev.ps1
 ```
 
-Or individually:
+Or run individually:
 ```powershell
 # Terminal 1 (brain):
-brain\.venv\Scripts\python -m brain.main
+python -m brain.main
 
 # Terminal 2 (avatar):
 npm --prefix avatar run start:electron
 ```
 
-### 7. Test Phase 1 text mode
+### 7. Interact
 
-```powershell
-# Health check:
-curl http://127.0.0.1:8766/health
-
-# Send a message:
-curl -X POST http://127.0.0.1:8767/chat `
-  -H "Content-Type: application/json" `
-  -d '{"message": "Open Notepad"}'
-```
+- **Voice (Primary)**: Press `Right Ctrl` anywhere in Windows, speak into your mic.
+- **Health check**: `curl http://127.0.0.1:8766/health`
+- **Text chat (Debug)**:
+  ```powershell
+  curl -X POST http://127.0.0.1:8766/chat `
+    -H "Content-Type: application/json" `
+    -d '{"message": "Open Notepad"}'
+  ```
 
 ---
 

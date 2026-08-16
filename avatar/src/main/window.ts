@@ -38,16 +38,52 @@ export function createWindow(): void {
     },
   });
 
-  mainWindow!.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.key === ',' && input.control) {
-      event.preventDefault();
-      toggleWindowMode();
+  // Forward renderer console logs to the Node terminal for dev visibility
+  mainWindow.webContents.on('console-message', (event: any, ...args: any[]) => {
+    let level = 1;
+    let message = '';
+    let sourceId = '';
+    let line = 0;
+
+    if (typeof args[0] === 'object' && args[0] !== null) {
+      level = args[0].level ?? 1;
+      message = args[0].message ?? '';
+      sourceId = args[0].sourceId ?? '';
+      line = args[0].lineNumber ?? 0;
+    } else {
+      level = args[0] ?? 1;
+      message = args[1] ?? '';
+      line = args[2] ?? 0;
+      sourceId = args[3] ?? '';
+    }
+
+    if (typeof message === 'string' && message.includes('Electron Security Warning')) return;
+
+    const levelStr = level === 3 ? '[AVATAR RENDERER ERROR]' : (level === 2 ? '[AVATAR RENDERER WARN]' : '[AVATAR RENDERER]');
+    const loc = sourceId ? ` (${path.basename(sourceId)}:${line})` : '';
+    console.log(`${levelStr} ${message}${loc}`);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`[AVATAR ERROR] Failed to load renderer page: ${errorDescription} (code: ${errorCode})`);
+  });
+
+  // Hotkeys: Ctrl+, (toggle mode) | Ctrl+Shift+I or F12 (toggle DevTools)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown') {
+      if (input.key === ',' && input.control) {
+        event.preventDefault();
+        toggleWindowMode();
+      } else if ((input.control && input.shift && input.key.toLowerCase() === 'i') || input.key === 'F12') {
+        event.preventDefault();
+        mainWindow?.webContents.toggleDevTools();
+      }
     }
   });
 
-  mainWindow!.loadFile(path.join(__dirname, '../renderer/VRM.html'));
+  mainWindow.loadFile(path.join(__dirname, '../renderer/VRM.html'));
 
-  mainWindow!.on('closed', () => {
+  mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }

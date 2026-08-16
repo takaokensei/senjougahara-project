@@ -66,29 +66,34 @@ export class VRMRenderer {
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
-    const gltf = await loader.loadAsync(url);
-    this.vrm = gltf.userData.vrm as VRM;
-
-    if (!this.vrm) {
-      throw new Error('Failed to load VRM model');
-    }
-
-    this.scene.add(this.vrm.scene);
-
-    const mixer = new THREE.AnimationMixer(this.vrm.scene);
-    this.animation = new AnimationController(this.vrm, mixer);
-    this.expression = new ExpressionController(this.vrm);
-
     try {
-      await this.animation.loadAll(this.animationsConfigPath);
-    } catch (error) {
-      console.error('[desktop-mascot-mcp] Failed to load animations (continuing without):', error);
+      const gltf = await loader.loadAsync(url);
+      this.vrm = gltf.userData.vrm as VRM;
+
+      if (!this.vrm) {
+        throw new Error(`VRM model parse failed for url: ${url}`);
+      }
+
+      this.scene.add(this.vrm.scene);
+
+      const mixer = new THREE.AnimationMixer(this.vrm.scene);
+      this.animation = new AnimationController(this.vrm, mixer);
+      this.expression = new ExpressionController(this.vrm);
+
+      try {
+        await this.animation.loadAll(this.animationsConfigPath);
+      } catch (error) {
+        console.error('[desktop-mascot-mcp] Failed to load animations (continuing without):', error);
+      }
+
+      // アニメーション読み込みの成否にかかわらず初期状態を適用
+      this.animation.applyInitialState();
+
+      console.log(`[desktop-mascot-mcp] VRM model loaded successfully: ${url}`);
+    } catch (err) {
+      console.error(`[VRM Error] Failed to load VRM model at "${url}":`, err);
+      throw err;
     }
-
-    // アニメーション読み込みの成否にかかわらず初期状態を適用
-    this.animation.applyInitialState();
-
-    console.log('[desktop-mascot-mcp] VRM model loaded');
   }
 
   setVowel(vowel: 'a' | 'i' | 'u' | 'e' | 'o' | null): void {
