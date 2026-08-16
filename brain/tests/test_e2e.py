@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tests/test_e2e.py
 
 End-to-End integration test for the Senjougahara MVP flow:
@@ -99,3 +99,31 @@ class TestEndToEndMVP:
             assert "list_windows" in log_content
 
         asyncio.run(run_flow())
+
+    @pytest.mark.asyncio
+    async def test_bridge_client_speak_payload_includes_caption(self):
+        bridge = BridgeClient(host="127.0.0.1", port=8765)
+        sent_messages = []
+
+        # Mock internal _send method
+        async def mock_send(msg):
+            sent_messages.append(msg)
+
+        bridge._send = mock_send
+
+        await bridge.speak(
+            text="はい、わかりました (Sim, entendido)",
+            emotion="happy",
+            animation="nod",
+            caption="Sim, entendido",
+            audio_url="http://127.0.0.1:8766/audio/test.wav",
+        )
+
+        assert len(sent_messages) == 1
+        msg = sent_messages[0]
+        assert msg["type"] == "speak"
+        assert msg["text"] == "はい、わかりました (Sim, entendido)"
+        assert msg["caption"] == "Sim, entendido"
+        assert msg["emotion"] == "happy"
+        assert msg["animation"] == "nod"
+        assert msg["audio_url"] == "http://127.0.0.1:8766/audio/test.wav"

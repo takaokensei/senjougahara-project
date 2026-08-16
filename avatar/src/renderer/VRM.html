@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Desktop Mascot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -24,6 +27,36 @@
       height: 100%;
       display: block;
       -webkit-app-region: no-drag; /* OrbitControls 操作を有効化 */
+    }
+
+    .subtitle {
+      font-family: "Poppins", "Nunito", "Quicksand", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-weight: 700;
+      font-size: 21px;
+      line-height: 1.35;
+      color: #ffffff;
+      -webkit-text-stroke: 1.5px #000000;
+      text-shadow:
+        -1px -1px 0 #000, 1px -1px 0 #000,
+        -1px 1px 0 #000, 1px 1px 0 #000,
+        0 2px 5px rgba(0, 0, 0, 0.85);
+      text-align: center;
+      max-width: 86%;
+      margin: 0 auto;
+      position: absolute;
+      bottom: 8%;
+      left: 0;
+      right: 0;
+      pointer-events: none;
+      user-select: none;
+      opacity: 0;
+      transition: opacity 0.25s ease-in-out;
+      word-wrap: break-word;
+      z-index: 1000;
+    }
+
+    .subtitle.visible {
+      opacity: 1;
     }
 
     #error-overlay {
@@ -75,6 +108,7 @@
 </head>
 <body>
   <canvas id="canvas"></canvas>
+  <div id="subtitle-overlay" class="subtitle"></div>
   <div id="error-overlay">
     <strong>⚠️ VRM Model Not Found</strong>
     <span id="error-msg">Place a <code>.vrm</code> file (e.g. <code>AliciaSolid.vrm</code>) into <code>avatar/assets/models/</code></span>

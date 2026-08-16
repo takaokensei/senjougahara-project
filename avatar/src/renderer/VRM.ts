@@ -152,6 +152,45 @@ function setupBeforeUnload() {
   });
 }
 
+let subtitleTimeout: number | null = null;
+
+function showSubtitle(text: string, durationMs?: number): void {
+  const subtitleEl = document.getElementById('subtitle-overlay');
+  if (!subtitleEl) return;
+
+  if (subtitleTimeout) {
+    clearTimeout(subtitleTimeout);
+    subtitleTimeout = null;
+  }
+
+  // Extract Portuguese text if format is 'Japanese (Portuguese)'
+  let displayText = text.trim();
+  const parenMatch = displayText.match(/\(([^)]+)\)/);
+  if (parenMatch) {
+    displayText = parenMatch[1].trim();
+  }
+
+  subtitleEl.textContent = displayText;
+  subtitleEl.classList.add('visible');
+
+  if (durationMs && durationMs > 0) {
+    subtitleTimeout = window.setTimeout(() => {
+      hideSubtitle();
+    }, durationMs);
+  }
+}
+
+function hideSubtitle(): void {
+  const subtitleEl = document.getElementById('subtitle-overlay');
+  if (subtitleEl) {
+    subtitleEl.classList.remove('visible');
+  }
+  if (subtitleTimeout) {
+    clearTimeout(subtitleTimeout);
+    subtitleTimeout = null;
+  }
+}
+
 function playAudioWithLipSync(audioUrl: string) {
   if (currentAudio) {
     currentAudio.pause();
@@ -186,6 +225,7 @@ function playAudioWithLipSync(audioUrl: string) {
     if (vrmRenderer) {
       vrmRenderer.setVowel(null);
     }
+    hideSubtitle();
   };
 
   audio.onerror = (e) => {
@@ -197,9 +237,17 @@ function playAudioWithLipSync(audioUrl: string) {
     if (vrmRenderer) {
       vrmRenderer.setVowel(null);
     }
+    hideSubtitle();
   };
 
-  audio.play().catch((err) => console.warn('[Senjougahara] audio.play() failed:', err));
+  audio.play().catch((err) => {
+    console.warn('[Senjougahara] audio.play() failed:', err);
+    // If browser blocks audio autoplay, dismiss subtitle after estimated duration
+    const subEl = document.getElementById('subtitle-overlay');
+    const textLen = subEl?.textContent?.length || 20;
+    const estTime = Math.max(3000, textLen * 85);
+    subtitleTimeout = window.setTimeout(hideSubtitle, estTime);
+  });
 }
 
 function setupIPCListeners() {
@@ -238,11 +286,23 @@ function setupIPCListeners() {
       if (command.animation && command.animation !== 'idle') {
         vrmRenderer.playAnimation(command.animation);
       }
+
+      // Display Portuguese subtitle
+      const caption = command.caption || command.text;
+      if (caption) {
+        const estimatedDuration = Math.max(3000, caption.length * 85);
+        showSubtitle(caption, command.audio_url ? undefined : estimatedDuration);
+      }
+
       if (command.audio_url) {
         playAudioWithLipSync(command.audio_url);
       }
     } else if (command.type === 'state_change') {
       const state = command.state;
+      if (state === 'LISTENING' || state === 'THINKING' || state === 'ERROR') {
+        hideSubtitle();
+      }
+
       switch (state) {
         case 'LISTENING':
           vrmRenderer.setEmotion('neutral');

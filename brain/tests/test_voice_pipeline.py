@@ -90,6 +90,7 @@ class TestVoicePipelineIntegration:
                 animation="greeting",
                 audio_url="http://127.0.0.1:8766/audio/test.wav",
                 priority="normal",
+                caption="Olá.",
             )
             mock_bridge.send_error.assert_not_called()
             for call in mock_bridge.set_state.call_args_list:

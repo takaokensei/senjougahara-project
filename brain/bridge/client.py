@@ -95,6 +95,7 @@ class BridgeClient:
         animation: str = "idle",
         audio_url: str | None = None,
         priority: str = "normal",
+        caption: str | None = None,
     ) -> None:
         """Send a speak command to the avatar."""
         msg: dict[str, Any] = {
@@ -104,6 +105,8 @@ class BridgeClient:
             "animation": animation,
             "priority": priority,
         }
+        if caption:
+            msg["caption"] = caption
         if audio_url:
             msg["audio_url"] = audio_url
         await self._send(msg)

@@ -51,6 +51,10 @@
         "text": {"type": "string", "minLength": 1},
         "emotion": {"$ref": "#/definitions/Emotion"},
         "animation": {"$ref": "#/definitions/Animation"},
+        "caption": {
+          "type": "string",
+          "description": "Optional Portuguese subtitle text to display over the avatar."
+        },
         "audio_url": {
           "type": "string",
           "description": "URL to synthesized audio file (e.g. http://127.0.0.1:8766/audio/response.wav). Optional: if absent, avatar shows lip-sync placeholder without playing audio."

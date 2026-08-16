@@ -1,4 +1,4 @@
-﻿/**
+/**
  * avatar/src/main/bridge-server.ts
  *
  * WebSocket + REST bridge server in the Electron main process.
@@ -25,7 +25,7 @@ export type AvatarState =
 
 export type Emotion = 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'confused' | 'annoyed' | 'relaxed';
 
-export interface SpeakCommand { type: 'speak'; text: string; emotion: Emotion; animation?: string; audio_url?: string; viseme_track?: Array<{ time: number; viseme: string }>; priority?: string; }
+export interface SpeakCommand { type: 'speak'; text: string; emotion: Emotion; animation?: string; caption?: string; audio_url?: string; viseme_track?: Array<{ time: number; viseme: string }>; priority?: string; }
 export interface StateChangeCommand { type: 'state_change'; state: AvatarState; reason?: string; }
 export interface ConfirmationRequest { type: 'confirmation_request'; request_id: string; action_description: string; tool_name: string; risk_tier: string; timeout_seconds: number; }
 export interface ConfirmationResponse { type: 'confirmation_response'; request_id: string; confirmed: boolean; }

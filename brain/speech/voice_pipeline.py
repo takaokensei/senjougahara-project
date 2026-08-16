@@ -199,7 +199,7 @@ class VoicePipeline:
             except Exception as tts_exc:
                 logger.warning("TTS synthesis failed: %s", tts_exc)
 
-            # 7. Command Avatar to speak with lip-sync
+            # 7. Command Avatar to speak with lip-sync and subtitle caption
             wav_path = audio_result.get("wav_path") if audio_result else None
             audio_duration = estimate_audio_duration_seconds(structured.text, wav_path)
 
@@ -211,12 +211,18 @@ class VoicePipeline:
                 audio_duration + 0.6,
             )
 
+            caption_text = structured.portuguese_translation
+            if not caption_text:
+                m_cap = re.search(r"\(([^)]+)\)", structured.text)
+                caption_text = m_cap.group(1).strip() if m_cap else structured.text
+
             await self.bridge.speak(
                 text=structured.text,
                 emotion=structured.emotion.value,
                 animation=structured.animation,
                 audio_url=audio_result["audio_url"] if audio_result else None,
                 priority=structured.priority.value,
+                caption=caption_text,
             )
 
             # 8. Local speaker playback fallback

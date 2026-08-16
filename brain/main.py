@@ -327,16 +327,24 @@ async def main() -> None:
             except Exception as tts_exc:
                 logger.warning("TTS failed (degraded mode): %s", tts_exc)
 
+            caption_text = structured.portuguese_translation
+            if not caption_text:
+                import re
+                m_cap = re.search(r"\(([^)]+)\)", structured.text)
+                caption_text = m_cap.group(1).strip() if m_cap else structured.text
+
             await bridge.speak(
                 text=structured.text,
                 emotion=structured.emotion.value,
                 animation=structured.animation,
                 audio_url=audio_result["audio_url"] if audio_result else None,
                 priority=structured.priority.value,
+                caption=caption_text,
             )
 
             return JSONResponse({
                 "text": structured.text,
+                "caption": caption_text,
                 "emotion": structured.emotion.value,
                 "animation": structured.animation,
                 "priority": structured.priority.value,
