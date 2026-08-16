@@ -1,16 +1,25 @@
 import * as THREE from 'three';
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { AnimationController } from './AnimationController.js';
 import { ExpressionController } from './ExpressionController.js';
 import { LocomotionController } from './controllers/LocomotionController.js';
+
+// Fixed camera configuration for the portrait waist-up view
+const FIXED_CAMERA = {
+  fov: 28,
+  posX: 0,
+  posY: 1.22,
+  posZ: -0.75,
+  lookX: 0,
+  lookY: 1.18,
+  lookZ: 0,
+} as const;
 
 export class VRMRenderer {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
-  private controls: OrbitControls;
   private vrm: VRM | null = null;
   private clock: THREE.Clock;
 
@@ -25,11 +34,8 @@ export class VRMRenderer {
     canvas: HTMLCanvasElement,
     animationsConfigPath: string = './assets/animations/animations.json',
     storagePrefix: string = 'desktop-mascot',
-    cameraConfig?: {
-      position: { x: number; y: number; z: number };
-      lookAt: { x: number; y: number; z: number };
-      fov: number;
-    }
+    // cameraConfig is accepted but ignored — camera is always fixed to the portrait preset
+    _cameraConfig?: unknown
   ) {
     this.animationsConfigPath = animationsConfigPath;
     this.storagePrefix = storagePrefix;
@@ -37,17 +43,16 @@ export class VRMRenderer {
     this.scene = new THREE.Scene();
     this.clock = new THREE.Clock();
 
-    const fov = cameraConfig?.fov ?? 45;
-    const position = cameraConfig?.position ?? { x: 0, y: 1.0, z: -1.0 };
-    const lookAt = cameraConfig?.lookAt ?? { x: 0, y: 1.0, z: 0 };
+    // Fixed portrait camera — always looking at the model from the front
+    this.camera = new THREE.PerspectiveCamera(FIXED_CAMERA.fov, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.camera.position.set(FIXED_CAMERA.posX, FIXED_CAMERA.posY, FIXED_CAMERA.posZ);
+    this.camera.lookAt(FIXED_CAMERA.lookX, FIXED_CAMERA.lookY, FIXED_CAMERA.lookZ);
 
-    this.camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 100);
-    this.camera.position.set(position.x, position.y, position.z);
-    this.camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
-
+    // Locomotion still drives the avatar's screen position (bottom-left anchor)
+    // but wander is never started, so she stays stationary
     this.locomotion = new LocomotionController(
-      { fov, distance: Math.abs(position.z) || 1.5, targetY: lookAt.y },
-      { x: Math.round(window.innerWidth * 0.5), y: Math.round(window.innerHeight * 0.65) }
+      { fov: FIXED_CAMERA.fov, distance: Math.abs(FIXED_CAMERA.posZ), targetY: FIXED_CAMERA.lookY },
+      { x: Math.round(window.innerWidth * 0.15), y: Math.round(window.innerHeight * 0.80) }
     );
 
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
@@ -55,12 +60,7 @@ export class VRMRenderer {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(0x000000, 0);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 1.0, 0);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-    this.controls.update();
-
+    // Lighting
     const light = new THREE.DirectionalLight(0xffffff, 1.0);
     light.position.set(1, 1, 1).normalize();
     this.scene.add(light);
@@ -97,7 +97,7 @@ export class VRMRenderer {
       }
 
       this.animation.applyInitialState();
-      this.locomotion.startWanderLoop();
+      // Do NOT start wander loop — avatar is pinned to the bottom-left anchor position
 
       console.log(`[desktop-mascot-mcp] VRM model loaded successfully: ${url}`);
     } catch (err) {
@@ -132,7 +132,7 @@ export class VRMRenderer {
       this.animation?.update(delta);
       this.expression?.update();
       this.vrm?.update(delta);
-      this.controls.update();
+      // No controls.update() — OrbitControls removed to prevent user camera rotation
 
       this.renderer.render(this.scene, this.camera);
 
@@ -197,62 +197,7 @@ export class VRMRenderer {
     }
   }
 
-  animateCameraTo(
-    targetPos: { x: number; y: number; z: number },
-    targetLookAt: { x: number; y: number; z: number },
-    durationMs: number = 800
-  ): void {
-    const startPos = this.camera.position.clone();
-    const startTarget = this.controls.target.clone();
-    const endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
-    const endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
-
-    const startTime = performance.now();
-
-    const step = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(1.0, elapsed / durationMs);
-      const ease = 1 - Math.pow(1 - progress, 3);
-
-      this.camera.position.lerpVectors(startPos, endPos, ease);
-      this.controls.target.lerpVectors(startTarget, endTarget, ease);
-      this.controls.update();
-
-      if (progress < 1.0) {
-        requestAnimationFrame(step);
-      }
-    };
-
-    requestAnimationFrame(step);
-  }
-
-  applyPresetBottomLeftWaistUp(): void {
-    this.locomotion.stop();
-
-    const targetPos = {
-      x: Math.round(window.innerWidth * 0.16),
-      y: Math.round(window.innerHeight * 0.72),
-    };
-
-    this.locomotion.wanderTo(targetPos, 'walk', 1000, () => {
-      this.locomotion.startWanderLoop();
-    });
-
-    this.animateCameraTo(
-      { x: 0, y: 1.18, z: -0.65 },
-      { x: 0, y: 1.15, z: 0 },
-      1000
-    );
-  }
-
-  resetToCenterAndDefaultCamera(): void {
-    this.locomotion.resetToCenter();
-    this.animateCameraTo(
-      { x: 0, y: 1.3, z: -1.5 },
-      { x: 0, y: 1.2, z: 0 },
-      1000
-    );
-  }
+  // Camera is fixed — no animateCameraTo, no presets, no reset
 
   getVRM(): VRM | null {
     return this.vrm;
@@ -267,40 +212,13 @@ export class VRMRenderer {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.locomotion.updateBounds(window.innerWidth, window.innerHeight);
+    // Keep camera fixed on resize
+    this.camera.position.set(FIXED_CAMERA.posX, FIXED_CAMERA.posY, FIXED_CAMERA.posZ);
+    this.camera.lookAt(FIXED_CAMERA.lookX, FIXED_CAMERA.lookY, FIXED_CAMERA.lookZ);
   }
 
-  saveCameraState(): void {
-    const state = {
-      position: {
-        x: this.camera.position.x,
-        y: this.camera.position.y,
-        z: this.camera.position.z,
-      },
-      target: {
-        x: this.controls.target.x,
-        y: this.controls.target.y,
-        z: this.controls.target.z,
-      },
-    };
-    localStorage.setItem(`${this.storagePrefix}-camera-state`, JSON.stringify(state));
-  }
-
-  loadCameraState(): void {
-    const stored = localStorage.getItem(`${this.storagePrefix}-camera-state`);
-    if (!stored) return;
-
-    try {
-      const state = JSON.parse(stored);
-      if (state.position) {
-        this.camera.position.set(state.position.x, state.position.y, state.position.z);
-      }
-      if (state.target) {
-        this.controls.target.set(state.target.x, state.target.y, state.target.z);
-      }
-      this.controls.update();
-      console.log('[desktop-mascot-mcp] Camera state restored');
-    } catch (error) {
-      console.error('[desktop-mascot-mcp] Failed to load camera state:', error);
-    }
-  }
+  // Camera state is always fixed — nothing to save or restore
+  saveCameraState(): void {}
+  loadCameraState(): void {}
 }
+

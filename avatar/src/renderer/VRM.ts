@@ -341,15 +341,15 @@ function setupIPCListeners() {
     vrmRenderer?.playAnimation(animation);
   });
 
+  // Camera is fixed — reset-to-center and preset commands are no-ops now
   window.vrmAPI.onResetToCenter?.(() => {
-    console.log('[Senjougahara] Received reset-to-center command');
-    vrmRenderer?.resetToCenterAndDefaultCamera();
+    console.log('[Senjougahara] Camera is fixed — ignoring reset-to-center command');
   });
 
   window.vrmAPI.onPresetBottomLeftWaistUp?.(() => {
-    console.log('[Senjougahara] Received preset-bottom-left-waist-up command');
-    vrmRenderer?.applyPresetBottomLeftWaistUp();
+    console.log('[Senjougahara] Camera is fixed — ignoring preset-bottom-left command');
   });
+
 
   // Senjougahara Bridge Commands Handler
   window.vrmAPI.onBridgeCommand?.((command) => {

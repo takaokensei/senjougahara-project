@@ -153,7 +153,12 @@ class VoicePipeline:
         self._is_processing = True
         logger.info("Voice pipeline activated via: %s", source)
 
+        # Pre-emptively suppress any self-trigger during the full turn duration.
+        # This is extended again with the actual audio duration once TTS is ready.
+        self._suppress_wakeword_until = time.monotonic() + 6.0
+
         try:
+
             # 1. Notify avatar: LISTENING
             await self.bridge.set_state("LISTENING", reason=f"Activated by {source}")
 

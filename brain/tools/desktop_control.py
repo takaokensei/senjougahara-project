@@ -253,18 +253,47 @@ async def type_text(text: str, delay_ms: int = 0) -> str:
     },
 )
 async def write_note(content: str, typing_delay_ms: int = 80) -> str:
-    """Launch Notepad and type content with realistic pacing."""
+    """Launch Notepad, bring it to the foreground, then type content with realistic pacing."""
+    import subprocess
+    import ctypes
+    import time as _time
+
     try:
-        await launch_app("notepad")
-        # Known limitation: wait fixed 800ms for Notepad window initialization
-        # since Windows does not provide a cross-process window-ready event.
-        await asyncio.sleep(0.8)
-        await focus_window("Notepad")
+        # Launch Notepad via subprocess so we get its PID reliably
+        proc = await asyncio.to_thread(
+            subprocess.Popen, ["notepad.exe"]
+        )
+        pid = proc.pid
+        logger.info("Launched Notepad (pid=%d)", pid)
+
+        # Poll up to 3 seconds for the Notepad window to appear and become usable
+        import pywinauto
+        deadline = _time.monotonic() + 3.0
+        app = None
+        while _time.monotonic() < deadline:
+            try:
+                app = pywinauto.Application(backend="uia").connect(process=pid, timeout=0.5)
+                break
+            except Exception:
+                await asyncio.sleep(0.2)
+
+        if app is None:
+            raise RuntimeError("Notepad window did not appear within 3 seconds.")
+
+        # Bring the Notepad window to the foreground using Win32
+        win = app.top_window()
+        handle = win.handle
+        await asyncio.to_thread(ctypes.windll.user32.SetForegroundWindow, handle)
+        await asyncio.to_thread(ctypes.windll.user32.BringWindowToTop, handle)
+        await asyncio.sleep(0.3)  # Let Windows process the focus change
+
+        logger.info("Notepad is in the foreground — starting to type")
         await type_text(content, delay_ms=typing_delay_ms)
         return "Nota escrita no Notepad."
     except Exception as exc:
         logger.error("Failed to write note: %s", exc)
         raise RuntimeError(f"Could not write note: {exc}") from exc
+
 
 
 
