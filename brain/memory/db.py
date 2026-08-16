@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS facts (
     key         TEXT NOT NULL UNIQUE,
     value       TEXT NOT NULL,
     confidence  REAL NOT NULL DEFAULT 1.0,
+    category    TEXT NOT NULL DEFAULT 'general',
+    expires_at  TEXT DEFAULT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -51,16 +53,31 @@ CREATE TABLE IF NOT EXISTS approval_patterns (
 );
 
 CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(key);
+CREATE INDEX IF NOT EXISTS idx_facts_category ON facts(category);
+CREATE INDEX IF NOT EXISTS idx_facts_expires ON facts(expires_at);
 CREATE INDEX IF NOT EXISTS idx_prefs_key ON preferences(key);
 CREATE INDEX IF NOT EXISTS idx_log_timestamp ON conversation_log(timestamp);
 CREATE INDEX IF NOT EXISTS idx_approval_patterns_lookup ON approval_patterns(action_category, tool_name);
 """
 
 
+def _migrate_facts_table(conn: sqlite3.Connection) -> None:
+    """Idempotently add category and expires_at columns to facts table if they do not exist."""
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(facts)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "category" not in columns:
+        cursor.execute("ALTER TABLE facts ADD COLUMN category TEXT NOT NULL DEFAULT 'general'")
+    if "expires_at" not in columns:
+        cursor.execute("ALTER TABLE facts ADD COLUMN expires_at TEXT DEFAULT NULL")
+    conn.commit()
+
+
 def _init_sync(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.executescript(_SCHEMA_SQL)
+        _migrate_facts_table(conn)
         conn.commit()
 
 
