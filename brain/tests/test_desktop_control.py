@@ -7,7 +7,7 @@ Unit tests for desktop control and browser executable path resolution.
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -115,4 +115,41 @@ class TestDesktopControlResolution:
         assert cmd == no_space_path, (
             f"Path without spaces should be unquoted, got: {cmd!r}"
         )
+
+
+class TestWriteNoteAndTypeText:
+    @pytest.mark.asyncio
+    async def test_type_text_with_delay_splits_words(self):
+        from brain.tools.desktop_control import type_text
+
+        sent_chunks: list[str] = []
+
+        with patch("pywinauto.keyboard.send_keys", side_effect=lambda chunk, **kw: sent_chunks.append(chunk)):
+            result = await type_text("Olá Senjougahara teste", delay_ms=1)
+
+        assert "Typed 22 characters" in result
+        assert len(sent_chunks) == 3
+        assert "".join(sent_chunks) == "Olá Senjougahara teste"
+
+    @pytest.mark.asyncio
+    async def test_write_note_orchestration(self):
+        from brain.tools.desktop_control import write_note
+
+        sent_chunks: list[str] = []
+
+        with patch("brain.tools.desktop_control.launch_app", new_callable=AsyncMock) as mock_launch, \
+             patch("brain.tools.desktop_control.focus_window", new_callable=AsyncMock) as mock_focus, \
+             patch("pywinauto.keyboard.send_keys", side_effect=lambda chunk, **kw: sent_chunks.append(chunk)):
+
+            mock_launch.return_value = "Launched notepad with PID: 1111"
+            mock_focus.return_value = "Focused window: 'Notepad'"
+
+            result = await write_note("Lembrar de estudar DSP amanha", typing_delay_ms=1)
+
+            assert result == "Nota escrita no Notepad."
+            mock_launch.assert_called_once_with("notepad")
+            mock_focus.assert_called_once_with("Notepad")
+            assert len(sent_chunks) > 1
+            assert "".join(sent_chunks) == "Lembrar de estudar DSP amanha"
+
 
