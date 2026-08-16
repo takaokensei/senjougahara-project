@@ -31,7 +31,9 @@ pyperclip>=1.9.0
 # Browser automation
 playwright>=1.46.0
 
-# STT
+# Audio / Microphone & STT
+sounddevice>=0.5.0
+numpy>=1.24.0
 faster-whisper>=1.0.3
 
 # Wake word (Phase 2) — install here so the import doesn't fail; disabled in config
