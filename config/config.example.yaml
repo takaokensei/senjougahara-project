@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # Senjougahara — config.example.yaml
 # Copy this file to config/config.yaml and fill in your values.
 # Secrets (API keys) go in .env — NOT here.
@@ -10,10 +10,10 @@ personality:
 
 # ─── LLM Provider ─────────────────────────────────────────────────────────────
 llm:
-  provider: anthropic            # anthropic | openai | gemini | ollama
-  model: claude-sonnet-4-5       # model identifier for the chosen provider
+  provider: ollama               # ollama | anthropic | openai | gemini
+  model: qwen2.5:7b              # model identifier (e.g. qwen2.5:7b, llama3.1:8b)
   # For Ollama only:
-  # ollama_base_url is read from OLLAMA_BASE_URL in .env
+  # ollama_base_url is read from OLLAMA_BASE_URL in .env (default: http://localhost:11434)
 
 # ─── Speech / STT ─────────────────────────────────────────────────────────────
 stt:
