@@ -11,9 +11,9 @@ personality:
 # ─── LLM Provider ─────────────────────────────────────────────────────────────
 llm:
   provider: ollama               # ollama | anthropic | openai | gemini
-  # Recommended local model: qwen3:8b (runs in ~5.5-6GB VRAM, strong multilingual/Japanese,
-  # native tool calling in chat template, excellent role-playing and multi-turn dialogue alignment)
-  model: qwen3:8b                # model identifier (e.g. qwen3:8b, llama3.1:8b)
+  # Recommended local model: qwen2.5:7b (runs in ~4.7GB VRAM, strong multilingual/Japanese,
+  # native tool calling, excellent role-playing and multi-turn dialogue alignment)
+  model: qwen2.5:7b              # model identifier (e.g. qwen3:8b, llama3.1:8b)
   # For Ollama only:
   # ollama_base_url is read from OLLAMA_BASE_URL in .env (default: http://localhost:11434)
 

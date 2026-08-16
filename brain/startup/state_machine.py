@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/startup/state_machine.py
 
 Brain startup state machine.
@@ -99,10 +99,37 @@ class StartupStateMachine:
 
         elif provider == "ollama":
             base_url = self._config.llm.ollama_base_url
+            model_name = self._config.llm.model
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(f"{base_url}/api/version")
                 resp.raise_for_status()
-            logger.info("LLM provider: Ollama at %s (reachable)", base_url)
+
+                # Check if the configured model is installed
+                try:
+                    tags_resp = await client.get(f"{base_url}/api/tags")
+                    if tags_resp.status_code == 200:
+                        data = tags_resp.json()
+                        installed = [m.get("name", "") for m in data.get("models", [])]
+                        # Match exact name or name without tag (e.g. 'qwen2.5:7b' or 'qwen2.5')
+                        model_base = model_name.split(":")[0]
+                        matched = any(
+                            m == model_name or m.startswith(f"{model_name}:") or m.split(":")[0] == model_base
+                            for m in installed
+                        )
+                        if not matched:
+                            avail_str = ", ".join(installed) if installed else "(none)"
+                            raise ValueError(
+                                f"Ollama model '{model_name}' not found locally. "
+                                f"Available models: {avail_str}. "
+                                f"Run 'ollama pull {model_name}' or set model in config/config.yaml."
+                            )
+                except ValueError:
+                    raise
+                except Exception as exc:
+                    logger.debug("Could not verify Ollama models list: %s", exc)
+
+            logger.info("LLM provider: Ollama at %s (model: %s)", base_url, model_name)
+
 
         elif provider == "openai":
             key = os.environ.get("OPENAI_API_KEY", "")
