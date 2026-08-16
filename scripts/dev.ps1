@@ -77,7 +77,12 @@ Write-Host "  Senjougahara Dev Mode" -ForegroundColor Cyan
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 
+# Force UTF-8 encoding in PowerShell host and child processes
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 
 $brainJob   = $null
 $avatarJob  = $null
@@ -86,7 +91,11 @@ if (-not $AvatarOnly) {
     Write-Host "[BRAIN] Starting Python brain..." -ForegroundColor Yellow
     $brainJob = Start-Job -ScriptBlock {
         param($root, $py)
+        [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $OutputEncoding = [System.Text.Encoding]::UTF8
         $env:PYTHONUTF8 = "1"
+        $env:PYTHONIOENCODING = "utf-8"
         Set-Location $root
         & $py -m brain.main 2>&1 | ForEach-Object { "[BRAIN] $_" }
     } -ArgumentList $ProjectRoot, $BrainPython
@@ -96,6 +105,9 @@ if (-not $BrainOnly) {
     Write-Host "[AVATAR] Starting Electron avatar..." -ForegroundColor Green
     $avatarJob = Start-Job -ScriptBlock {
         param($avatarDir)
+        [Console]::InputEncoding = [System.Text.Encoding]::UTF8
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $OutputEncoding = [System.Text.Encoding]::UTF8
         Set-Location $avatarDir
         npm run start:electron 2>&1 | ForEach-Object { "[AVATAR] $_" }
     } -ArgumentList $AvatarDir
