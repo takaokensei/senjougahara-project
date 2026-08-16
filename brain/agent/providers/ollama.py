@@ -107,11 +107,9 @@ class OllamaProvider(BaseLLMProvider):
 
     def format_assistant_turn(self, response: LLMResponse) -> dict[str, Any] | None:
         """
-        Build the Ollama/OpenAI-compatible assistant message.
-        Ollama follows the OpenAI tool-call message format:
-          { role: "assistant", content: <text|None>, tool_calls: [...] }
-        Built from the normalised ToolCall list, not from response.raw (which is a
-        dict and doesn't have attributes — the original bug this fixes).
+        Build the Ollama-compatible assistant message.
+        Ollama's Python SDK validates Message.tool_calls.function.arguments as a dict (Mapping),
+        unlike OpenAI SDK which expects a serialized JSON string.
         """
         if not response.tool_calls:
             return None
@@ -121,7 +119,7 @@ class OllamaProvider(BaseLLMProvider):
                 "type": "function",
                 "function": {
                     "name": tc.tool_name,
-                    "arguments": json.dumps(tc.arguments),
+                    "arguments": tc.arguments if isinstance(tc.arguments, dict) else {},
                 },
             }
             for tc in response.tool_calls
