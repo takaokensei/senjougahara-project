@@ -39,7 +39,7 @@ if (-not $AvatarOnly) {
             $BrainPython = "python"
         } else {
             Write-Warning "Brain venv not found at $BrainVenv and system python not found."
-            Write-Warning "Run: python -m venv brain\.venv && brain\.venv\Scripts\pip install -r brain\requirements.txt"
+            Write-Warning "Run: uv venv brain\.venv && uv pip install -r brain\requirements.txt --python brain\.venv\Scripts\python.exe"
             if ($BrainOnly) { exit 1 }
         }
     } else {

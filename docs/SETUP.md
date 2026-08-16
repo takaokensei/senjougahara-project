@@ -5,23 +5,29 @@
 | Requirement | Version | Notes |
 |---|---|---|
 | Windows | 10 or 11 | No WSL or Docker needed |
-| Python | 3.11+ | [python.org](https://python.org) |
+| Python | 3.11+ | [python.org](https://python.org) or installed via uv |
+| uv | Latest | [astral.sh/uv](https://docs.astral.sh/uv/) (fast Python manager) |
 | Node.js | 20+ | [nodejs.org](https://nodejs.org) |
 | AivisSpeech | Latest | [aivis-project.com](https://aivis-project.com/) — OR VOICEVOX as fallback |
-| Anthropic API Key | — | [console.anthropic.com](https://console.anthropic.com) |
-| Git | Latest | For cloning the avatar fork |
+| Anthropic API Key | — | [console.anthropic.com](https://console.anthropic.com) (or Ollama locally) |
+| Git | Latest | Version control |
 
 ---
 
 ## Step-by-Step Installation
 
-### 1. Set up the Python brain
+### 1. Set up the Python brain with uv
 
 ```powershell
-pip install -r brain\requirements.txt
+# Install uv if needed:
+# powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Create virtual environment and install dependencies:
+uv venv brain\.venv
+uv pip install -r brain\requirements.txt --python brain\.venv\Scripts\python.exe
 
 # Install Playwright's Chromium browser (used for browser automation)
-playwright install chromium
+brain\.venv\Scripts\playwright install chromium
 ```
 
 ### 2. Set up the Avatar (Electron)

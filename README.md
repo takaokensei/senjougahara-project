@@ -28,7 +28,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design rationale.
 ### Prerequisites
 
 - Windows 10/11
-- Python 3.11+
+- Python 3.11+ (or installed via [uv](https://docs.astral.sh/uv/))
+- [uv](https://docs.astral.sh/uv/) (recommended for fast dependency resolution)
 - Node.js 20+
 - [AivisSpeech](https://aivis-project.com/) (or VOICEVOX) running on port `10101`
 - Ollama running locally (or API key for Anthropic/OpenAI/Gemini)
@@ -36,9 +37,13 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design rationale.
 ### 1. Setup Brain (Python Backend)
 
 ```powershell
-# Create virtual environment and install dependencies
-pip install -r brain\requirements.txt
-playwright install chromium
+# 1. Install uv if not already installed:
+# powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# 2. Create virtual environment and install dependencies
+uv venv brain\.venv
+uv pip install -r brain\requirements.txt --python brain\.venv\Scripts\python.exe
+brain\.venv\Scripts\playwright install chromium
 ```
 
 ### 2. Setup Avatar (Electron & 3D Character)
@@ -88,7 +93,7 @@ python -m brain.main
 npm --prefix avatar run start:electron
 ```
 
-### 5. Talk to Senjougahara (Voice Mode — Primary)
+### 6. Talk to Senjougahara (Voice Mode — Primary)
 
 1. Press the global hotkey: **`Right Ctrl`** (works anywhere in Windows).
 2. The avatar transitions to **`LISTENING`** state.
