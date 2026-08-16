@@ -4,9 +4,12 @@ brain/main.py
 Senjougahara Brain entrypoint.
 
 Phase 1: Text-only mode.
-  - POST /chat with {"message": "..."} -> agent processes -> structured response
-  - GET /health -> {"status": "ready"} once startup completes
-  - Audio files served at http://127.0.0.1:8766/audio/
+  - GET  /health        -> {\"status\": \"ready\"} once startup completes
+  - POST /chat          -> {\"message\": \"...\"} -> agent processes -> structured response
+  - GET  /audio/<file>  -> serves generated TTS audio files
+
+All endpoints are served by a single uvicorn instance on 127.0.0.1:8766
+(bridge_port + 1) to avoid port conflicts.
 """
 
 from __future__ import annotations
@@ -14,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import logging.handlers
-import os
 import signal
 import sys
 from pathlib import Path
@@ -39,31 +41,22 @@ def _configure_logging(log_dir: Path, level: str) -> None:
 
 async def main() -> None:
     from brain.config import config
+
     _configure_logging(config.logs_dir, config.logging.level)
     logger = logging.getLogger("brain.main")
     logger.info("Starting Senjougahara brain (Phase 1)")
 
-    from brain.personality.loader import load_profile
-    from brain.startup.state_machine import StartupStateMachine, make_health_app
+    # ── Imports ─────────────────────────────────────────────────────────────────
     import uvicorn
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
     from fastapi.staticfiles import StaticFiles
 
+    from brain.personality.loader import load_profile
+    from brain.startup.state_machine import StartupStateMachine
+
+    # ── Startup sequence ─────────────────────────────────────────────────────────
     startup = StartupStateMachine(config=config, personality_loader=load_profile)
-
-    # Unified App
-    app = FastAPI(title="Senjougahara Brain", docs_url=None, redoc_url=None)
-    
-    # Health
-    health_app = make_health_app(startup)
-    app.mount("/health", health_app)
-
-    # Audio
-    audio_cache_dir = config.appdata_dir / "audio_cache"
-    audio_cache_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/audio", StaticFiles(directory=str(audio_cache_dir)), name="audio")
-
     success = await startup.run()
     if not success:
         logger.error("Startup failed: %s", startup.error_message)
@@ -72,12 +65,12 @@ async def main() -> None:
     profile = startup.personality_profile
     logger.info("Personality: %s", profile.name if profile else "(none)")
 
-    # Bridge client
+    # ── Bridge client ────────────────────────────────────────────────────────────
     from brain.bridge.client import BridgeClient
     bridge = BridgeClient(host=config.bridge.host, port=config.bridge.port)
     await bridge.connect()
 
-    # Permission engine
+    # ── Permission engine ────────────────────────────────────────────────────────
     from brain.permissions.policy import PermissionEngine, load_policy_overrides
     policy_yaml = Path(__file__).parent / "permissions" / "policy.yaml"
     policy_overrides = load_policy_overrides(policy_yaml)
@@ -93,7 +86,7 @@ async def main() -> None:
         confirmation_callback=confirmation_callback,
     )
 
-    # Agent loop
+    # ── Agent loop ───────────────────────────────────────────────────────────────
     from brain.agent.loop import AgentLoop
     from brain.agent.providers.factory import create_llm_provider
     from brain.tools.registry import import_all_tools
@@ -110,8 +103,10 @@ async def main() -> None:
         system_prompt=system_prompt,
     )
 
-    # TTS
+    # ── TTS ──────────────────────────────────────────────────────────────────────
     from brain.speech.tts import TTSAdapter
+    audio_cache_dir = config.appdata_dir / "audio_cache"
+    audio_cache_dir.mkdir(parents=True, exist_ok=True)
     tts = TTSAdapter(
         engine_base_url=config.tts.engine_base_url,
         speaker_id=config.tts.speaker_id,
@@ -122,12 +117,19 @@ async def main() -> None:
 
     conversation_history: list[dict] = []
 
-    # Bridge activation handler
+    # ── Bridge event handlers ────────────────────────────────────────────────────
     async def handle_activate(event: dict) -> None:
         logger.info("Activation: %s", event.get("source"))
         await bridge.set_state("LISTENING", reason="activation")
 
     bridge.on("activate", handle_activate)
+
+    # ── FastAPI app (single server, single port) ─────────────────────────────────
+    app = FastAPI(title="Senjougahara Brain", docs_url=None, redoc_url=None)
+
+    @app.get("/health")
+    async def health() -> JSONResponse:
+        return JSONResponse({"status": "ready", "error": None})
 
     @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:
@@ -143,6 +145,7 @@ async def main() -> None:
             structured = await agent.process(user_message, conversation_history)
             conversation_history.append({"role": "user", "content": user_message})
             conversation_history.append({"role": "assistant", "content": structured.text})
+            # Keep history bounded to last 40 messages
             if len(conversation_history) > 40:
                 conversation_history[:] = conversation_history[-40:]
 
@@ -154,7 +157,7 @@ async def main() -> None:
                     animation=structured.animation,
                 )
             except Exception as tts_exc:
-                logger.warning("TTS failed: %s", tts_exc)
+                logger.warning("TTS failed (degraded mode): %s", tts_exc)
 
             await bridge.speak(
                 text=structured.text,
@@ -177,30 +180,29 @@ async def main() -> None:
             await bridge.set_state("ERROR")
             return JSONResponse({"error": str(exc)}, status_code=500)
 
+    # Serve generated audio files at /audio/*
+    app.mount("/audio", StaticFiles(directory=str(audio_cache_dir)), name="audio")
+
+    # ── Start server ─────────────────────────────────────────────────────────────
+    api_port = config.bridge.port + 1  # default: 8766
     server = uvicorn.Server(uvicorn.Config(
-        app, host="127.0.0.1", port=config.bridge.port + 1, log_level="warning"
+        app, host="127.0.0.1", port=api_port, log_level="warning"
     ))
 
     await bridge.set_state("IDLE", reason="brain ready")
-    logger.info("READY. API: http://127.0.0.1:%d", config.bridge.port + 1)
+    logger.info(
+        "READY. health=http://127.0.0.1:%d/health  chat=http://127.0.0.1:%d/chat",
+        api_port, api_port,
+    )
 
-    stop_event = asyncio.Event()
+    # Graceful shutdown on Ctrl+C (Windows: only SIGINT is reliable)
+    def _shutdown(signum, frame):
+        logger.info("Shutdown (signal %d).", signum)
+        server.should_exit = True
 
-    def _shutdown():
-        logger.info("Shutdown signal received.")
-        stop_event.set()
+    signal.signal(signal.SIGINT, _shutdown)
 
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            signal.signal(sig, lambda s, f: _shutdown())
-        except ValueError:
-            pass
-
-    async def run_server():
-        await server.serve()
-
-    await asyncio.gather(run_server(), stop_event.wait())
-    server.should_exit = True
+    await server.serve()
     await bridge.disconnect()
     logger.info("Brain shutdown complete.")
 

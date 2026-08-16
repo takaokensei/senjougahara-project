@@ -166,9 +166,9 @@ class TTSAdapter:
             import struct
             import math
 
-            # Generate ~1.5 seconds of soft tone so the avatar has a valid audio file to play
+            # Generate a pleasant decaying notification chime (C6-E6-G6 arpeggio)
             sample_rate = 16000
-            duration = max(1.0, min(len(text) * 0.08, 5.0))
+            duration = max(0.8, min(len(text) * 0.05, 3.0))
             num_samples = int(sample_rate * duration)
 
             with wave.open(str(wav_path), "wb") as wf:
@@ -177,8 +177,11 @@ class TTSAdapter:
                 wf.setframerate(sample_rate)
                 data = bytearray()
                 for i in range(num_samples):
-                    # Gentle 440Hz decaying tone
-                    val = int(500 * math.sin(2 * math.pi * 440 * i / sample_rate) * math.exp(-i / (sample_rate * 0.5)))
+                    t = i / sample_rate
+                    # Arpeggio frequencies: 1046.5Hz (C6), 1318.5Hz (E6), 1567.98Hz (G6)
+                    f = 1046.5 if t < 0.15 else (1318.5 if t < 0.3 else 1567.98)
+                    v = math.sin(2 * math.pi * f * t) * math.exp(-3.0 * t)
+                    val = max(-32768, min(32767, int(4000 * v)))
                     data.extend(struct.pack("<h", val))
                 wf.writeframes(data)
 

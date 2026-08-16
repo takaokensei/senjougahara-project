@@ -119,6 +119,16 @@ async def run_cli() -> None:
                 audio_url=audio_res.get("audio_url"),
                 priority=response.priority.value,
             )
+
+            # Play local WAV file via Windows audio output for direct CLI feedback
+            wav_path = audio_res.get("wav_path")
+            if wav_path and Path(wav_path).exists():
+                try:
+                    import winsound
+                    winsound.PlaySound(str(wav_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
+                except Exception as play_exc:
+                    logger.debug("CLI audio playback error: %s", play_exc)
+
             print()
 
         except Exception as exc:
