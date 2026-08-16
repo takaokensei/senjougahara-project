@@ -132,9 +132,11 @@ async def main() -> None:
     # ── Agent loop ───────────────────────────────────────────────────────────────
     from brain.agent.loop import AgentLoop
     from brain.agent.providers.factory import create_llm_provider
+    from brain.personality.learner import PersonalityModel
     from brain.tools.registry import import_all_tools
     import_all_tools()
 
+    personality_model = PersonalityModel(db_path=config.appdata_dir / "memory.db")
     provider = create_llm_provider(config.llm)
     system_prompt = (
         profile.build_system_prompt() if profile
@@ -145,6 +147,7 @@ async def main() -> None:
         permission_engine=permission_engine,
         system_prompt=system_prompt,
         emergency_controller=emergency_controller,
+        personality_model=personality_model,
     )
 
     # ── Memory (Optional fact extractor) ─────────────────────────────────────────

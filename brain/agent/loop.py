@@ -26,6 +26,7 @@ from brain.agent.providers.base import BaseLLMProvider, LLMResponse, ToolCall
 from brain.agent.structured_output import StructuredResponse, parse_structured_response
 from brain.permissions.emergency import EmergencyController
 from brain.permissions.policy import PermissionEngine
+from brain.personality.learner import extract_style_signals
 from brain.tools import registry
 
 logger = logging.getLogger(__name__)
@@ -42,11 +43,13 @@ class AgentLoop:
         permission_engine: PermissionEngine,
         system_prompt: str,
         emergency_controller: EmergencyController | None = None,
+        personality_model: Any | None = None,
     ) -> None:
         self._provider = provider
         self._permissions = permission_engine
         self._system_prompt = system_prompt
         self._emergency = emergency_controller
+        self._personality_model = personality_model
 
     async def process(
         self,
@@ -57,6 +60,16 @@ class AgentLoop:
         Process a user message and return a structured response.
         conversation_history is mutated in-place (appended to).
         """
+        # Dynamic style adaptation from user message signals
+        effective_system_prompt = self._system_prompt
+        if self._personality_model is not None:
+            signals = extract_style_signals(user_input)
+            if signals:
+                await self._personality_model.apply_signals(signals)
+            style_ctx = self._personality_model.get_style_prompt_context()
+            if style_ctx:
+                effective_system_prompt = f"{self._system_prompt}\n\nDiretriz de estilo atual: {style_ctx}"
+
         messages = list(conversation_history or [])
         messages.append({"role": "user", "content": user_input})
 
@@ -68,7 +81,7 @@ class AgentLoop:
             response: LLMResponse = await self._provider.complete(
                 messages=messages,
                 tools=tool_definitions if tool_definitions else None,
-                system_prompt=self._system_prompt,
+                system_prompt=effective_system_prompt,
             )
 
             if not response.has_tool_calls:
