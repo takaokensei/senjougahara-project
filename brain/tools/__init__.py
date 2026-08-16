@@ -1,0 +1,1 @@
+﻿"""Tool layer: registry, desktop control, filesystem, terminal, browser, screenshot."""

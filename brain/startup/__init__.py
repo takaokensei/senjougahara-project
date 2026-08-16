@@ -1,0 +1,1 @@
+﻿"""Startup state machine: boot sequence and readiness checks."""

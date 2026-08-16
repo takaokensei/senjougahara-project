@@ -1,0 +1,22 @@
+﻿# =============================================================================
+# Senjougahara — Permission Policy Overrides
+# =============================================================================
+# Override individual tool risk tiers here.
+# Valid tiers: LOW, MEDIUM, HIGH
+#
+# CAUTION: HIGH-tier tools in the NEVER_AUTO_APPROVE_TOOLS set (defined in
+# brain/permissions/policy.py) CANNOT be downgraded to silent auto-approve
+# regardless of what you put here. This file can only move tools between tiers
+# that are not in that fixed set.
+#
+# See docs/PERMISSIONS.md for the full documentation.
+# =============================================================================
+
+overrides: {}
+
+# Example overrides:
+# overrides:
+#   # Promote a normally LOW-risk tool to require confirmation:
+#   read_file: MEDIUM
+#   # Relax a MEDIUM-risk tool to auto-execute (use carefully):
+#   type_text: LOW

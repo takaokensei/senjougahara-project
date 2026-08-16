@@ -1,0 +1,1 @@
+﻿"""Memory module (Phase 5): SQLite-backed facts, preferences, conversation log."""

@@ -1,0 +1,1 @@
+﻿"""Permission/authority engine: risk-tier classification and confirmation gating."""

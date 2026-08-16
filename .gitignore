@@ -1,0 +1,59 @@
+﻿# =====================
+# Senjougahara monorepo
+# =====================
+
+# Secrets
+.env
+config/config.yaml
+
+# Python
+brain/.venv/
+brain/__pycache__/
+brain/**/__pycache__/
+brain/**/*.pyc
+brain/**/*.pyo
+brain/**/*.pyd
+brain/.pytest_cache/
+brain/*.egg-info/
+brain/dist/
+brain/build/
+*.pyc
+
+# Node / Electron
+avatar/node_modules/
+avatar/dist/
+avatar/out/
+avatar/.vite/
+*.tsbuildinfo
+
+# Runtime data (stored in %LOCALAPPDATA%\Senjougahara\ - not in repo)
+brain/memory/memory.db
+brain/memory/memory.db-shm
+brain/memory/memory.db-wal
+session_state.json
+
+# Logs
+*.log
+logs/
+
+# VRM / Animation assets (large binary, licensed separately)
+avatar/assets/models/*.vrm
+avatar/assets/animations/*.vrma
+
+# Reference repos (never commit upstream reference code)
+.reference/
+
+# Build artifacts
+launcher/dist/
+release/
+
+# IDE
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

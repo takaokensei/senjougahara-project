@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Senjougahara Bridge Protocol",
+  "description": "JSON schemas for all messages exchanged between avatar shell and agent brain over the local WebSocket/REST bridge on 127.0.0.1:8765",
+
+  "definitions": {
+
+    "Emotion": {
+      "type": "string",
+      "enum": ["neutral", "happy", "sad", "angry", "surprised", "confused", "annoyed", "relaxed"],
+      "description": "Facial expression preset. Maps to VRM blendshape presets in the avatar."
+    },
+
+    "Animation": {
+      "type": "string",
+      "description": "VRMA animation clip name (registered in avatar/assets/animations/). 'idle' is always available.",
+      "examples": ["idle", "greeting", "nod", "shrug", "thinking", "goodbye", "surprised", "angry_gesture"]
+    },
+
+    "AvatarState": {
+      "type": "string",
+      "enum": [
+        "IDLE",
+        "LISTENING",
+        "THINKING",
+        "TOOL_EXECUTION",
+        "SPEAKING",
+        "HAPPY",
+        "CONFUSED",
+        "SURPRISED",
+        "ANNOYED",
+        "SLEEPING",
+        "GREETING",
+        "GOODBYE",
+        "ERROR"
+      ]
+    },
+
+    "Priority": {
+      "type": "string",
+      "enum": ["low", "normal", "high", "urgent"]
+    },
+
+    "SpeakCommand": {
+      "type": "object",
+      "description": "Brain -> Avatar: speak this text with this emotion/animation. Audio URL points to a WAV served by the brain's HTTP server after TTS synthesis.",
+      "required": ["type", "text", "emotion"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "speak"},
+        "text": {"type": "string", "minLength": 1},
+        "emotion": {"$ref": "#/definitions/Emotion"},
+        "animation": {"$ref": "#/definitions/Animation"},
+        "audio_url": {
+          "type": "string",
+          "description": "URL to synthesized audio file (e.g. http://127.0.0.1:8766/audio/response.wav). Optional: if absent, avatar shows lip-sync placeholder without playing audio."
+        },
+        "viseme_track": {
+          "type": "array",
+          "description": "Optional phoneme/viseme timing data for accurate lip-sync.",
+          "items": {
+            "type": "object",
+            "required": ["time", "viseme"],
+            "properties": {
+              "time": {"type": "number", "description": "Time offset in seconds from audio start."},
+              "viseme": {"type": "string"}
+            }
+          }
+        },
+        "priority": {"$ref": "#/definitions/Priority"}
+      }
+    },
+
+    "StateChangeCommand": {
+      "type": "object",
+      "description": "Brain -> Avatar: transition avatar state machine to a new state.",
+      "required": ["type", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "state_change"},
+        "state": {"$ref": "#/definitions/AvatarState"},
+        "reason": {"type": "string", "description": "Human-readable reason for the state change (for debugging)."}
+      }
+    },
+
+    "ActivateEvent": {
+      "type": "object",
+      "description": "Avatar -> Brain: user triggered activation (hotkey or wake word detected).",
+      "required": ["type", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "activate"},
+        "source": {
+          "type": "string",
+          "enum": ["hotkey", "wake_word", "click"],
+          "description": "What triggered activation."
+        },
+        "timestamp": {"type": "number", "description": "Unix timestamp (ms) of the activation event."}
+      }
+    },
+
+    "ConfirmationRequest": {
+      "type": "object",
+      "description": "Brain -> Avatar: ask user to confirm a HIGH-risk action. Avatar renders a confirm/cancel UI.",
+      "required": ["type", "request_id", "action_description", "timeout_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "confirmation_request"},
+        "request_id": {"type": "string", "description": "UUID for correlating response."},
+        "action_description": {"type": "string", "description": "Human-readable description of the action to confirm."},
+        "tool_name": {"type": "string"},
+        "risk_tier": {"type": "string", "enum": ["MEDIUM", "HIGH"]},
+        "timeout_seconds": {"type": "number", "default": 30}
+      }
+    },
+
+    "ConfirmationResponse": {
+      "type": "object",
+      "description": "Avatar -> Brain: user's answer to a confirmation request.",
+      "required": ["type", "request_id", "confirmed"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "confirmation_response"},
+        "request_id": {"type": "string"},
+        "confirmed": {"type": "boolean"}
+      }
+    },
+
+    "ErrorEvent": {
+      "type": "object",
+      "description": "Brain -> Avatar: an error occurred. Avatar transitions to ERROR state.",
+      "required": ["type", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "error"},
+        "message": {"type": "string"},
+        "code": {"type": "string", "description": "Machine-readable error code."},
+        "recoverable": {"type": "boolean", "default": true}
+      }
+    },
+
+    "PingMessage": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "ping"}
+      }
+    },
+
+    "PongMessage": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "const": "pong"}
+      }
+    }
+  },
+
+  "type": "object",
+  "description": "Any bridge message is one of the union below.",
+  "oneOf": [
+    {"$ref": "#/definitions/SpeakCommand"},
+    {"$ref": "#/definitions/StateChangeCommand"},
+    {"$ref": "#/definitions/ActivateEvent"},
+    {"$ref": "#/definitions/ConfirmationRequest"},
+    {"$ref": "#/definitions/ConfirmationResponse"},
+    {"$ref": "#/definitions/ErrorEvent"},
+    {"$ref": "#/definitions/PingMessage"},
+    {"$ref": "#/definitions/PongMessage"}
+  ]
+}

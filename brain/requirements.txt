@@ -1,0 +1,58 @@
+﻿# =============================================================================
+# Senjougahara brain/ — Python dependencies
+# Python 3.11+ required
+# Install: pip install -r requirements.txt
+# =============================================================================
+
+# LLM Providers
+anthropic>=0.34.0
+openai>=1.40.0
+google-generativeai>=0.7.0
+ollama>=0.3.0
+
+# Data validation & structured output
+pydantic>=2.8.0
+
+# Configuration
+pyyaml>=6.0.1
+python-dotenv>=1.0.1
+
+# HTTP / WebSocket server (bridge + health endpoint)
+fastapi>=0.112.0
+uvicorn[standard]>=0.30.0
+websockets>=13.0
+httpx>=0.27.0
+
+# Windows automation
+pywinauto>=0.6.8
+pygetwindow>=0.0.9
+pyperclip>=1.9.0
+
+# Browser automation
+playwright>=1.46.0
+
+# STT
+faster-whisper>=1.0.3
+
+# Wake word (Phase 2) — install here so the import doesn't fail; disabled in config
+openwakeword>=0.6.0
+
+# Screen capture
+mss>=9.0.2
+# pytesseract>=0.3.10  # optional local OCR — uncomment if Tesseract is installed
+
+# Memory (Phase 5)
+aiosqlite>=0.20.0
+
+# Global hotkey hook
+keyboard>=0.13.5
+
+# MCP (optional server for external clients)
+mcp>=1.0.0
+
+# Async utilities
+anyio>=4.4.0
+
+# Testing
+pytest>=8.3.0
+pytest-asyncio>=0.23.0

@@ -1,0 +1,1 @@
+"""Optional MCP server: re-exposes the tool layer to external MCP clients."""

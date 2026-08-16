@@ -1,0 +1,1 @@
+﻿"""Personality system: loads YAML profiles into system prompts."""

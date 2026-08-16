@@ -1,0 +1,1 @@
+﻿"""Bridge: WebSocket/REST client for communicating with the avatar shell."""
