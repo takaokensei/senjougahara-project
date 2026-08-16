@@ -11,7 +11,9 @@ declare global {
       setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => void;
       setIgnoreMouseEvents?: (ignore: boolean, forward?: boolean) => void;
       updateCharacterPosition?: (pos: { x: number; y: number; width?: number; height?: number }) => void;
+      updateCharacterBounds?: (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => void;
       onResetToCenter?: (callback: () => void) => void;
+      onPresetBottomLeftWaistUp?: (callback: () => void) => void;
       onBridgeCommand?: (callback: (command: any) => void) => void;
       onBrainConnected?: (callback: () => void) => void;
       sendActivate?: (source: 'hotkey' | 'wake_word' | 'click') => void;
@@ -319,7 +321,12 @@ function setupIPCListeners() {
 
   window.vrmAPI.onResetToCenter?.(() => {
     console.log('[Senjougahara] Received reset-to-center command');
-    vrmRenderer?.getLocomotion().resetToCenter();
+    vrmRenderer?.resetToCenterAndDefaultCamera();
+  });
+
+  window.vrmAPI.onPresetBottomLeftWaistUp?.(() => {
+    console.log('[Senjougahara] Received preset-bottom-left-waist-up command');
+    vrmRenderer?.applyPresetBottomLeftWaistUp();
   });
 
   // Senjougahara Bridge Commands Handler

@@ -116,8 +116,9 @@ wake_word:
 | Shortcut | Action | Description |
 |---|---|---|
 | **`Right Ctrl`** | Voice Activation | Trigger microphone listening (global hotkey) |
+| **`Ctrl+0`** | Preset Portrait View | Positions avatar in bottom-left corner with close-up waist-up zoom |
+| **`Ctrl+Home`** | Reset Character Position | Smoothly returns the character to the center of the screen with default framing |
 | **`Ctrl+Alt+I`** | Emergency Mouse Override | Force mouse interactivity ON unconditionally if click-through gets locked |
-| **`Ctrl+Home`** | Reset Character Position | Smoothly returns the character to the center of the screen |
 | **`Ctrl+,`** | Toggle Settings Mode | Switch between full-screen transparent mode and framed settings window |
 | **`Ctrl+Shift+I`** / **`F12`** | Toggle DevTools | Open Electron developer tools for debugging |
 
