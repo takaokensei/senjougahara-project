@@ -17,7 +17,7 @@ Two native Windows processes communicating over a local WebSocket/REST bridge:
 | `avatar/` | Electron + Three.js + @pixiv/three-vrm | Renders the 3D VRM character, plays TTS audio with lip-sync, owns the system tray and global hotkey |
 | `brain/` | Python 3.11+ | LLM agent loop, speech I/O, Windows automation, memory, permission engine |
 
-Bridge: `ws://127.0.0.1:8765` (WebSocket events) + `http://127.0.0.1:8767/chat` (text input in Phase 1)
+Bridge: `ws://127.0.0.1:8765` (WebSocket events) + `http://127.0.0.1:8766/chat` (HTTP REST endpoint)
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design rationale.
 
@@ -33,14 +33,25 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design rationale.
 - [AivisSpeech](https://aivis-project.com/) (or VOICEVOX) running on port `10101`
 - Ollama running locally (or API key for Anthropic/OpenAI/Gemini)
 
-### 1. Setup Python Environment & Dependencies
+### 1. Setup Brain (Python Backend)
 
 ```powershell
+# Create virtual environment and install dependencies
 pip install -r brain\requirements.txt
 playwright install chromium
 ```
 
-### 2. Configure
+### 2. Setup Avatar (Electron & 3D Character)
+
+```powershell
+# Install Node dependencies and compile TypeScript
+npm --prefix avatar install
+npm --prefix avatar run build:electron
+```
+> [!NOTE]
+> Run `npm --prefix avatar run build:electron` whenever you modify TypeScript files in `avatar/` to recompile `dist/`.
+
+### 3. Configure
 
 ```powershell
 copy config\.env.example .env
@@ -48,17 +59,21 @@ copy config\config.example.yaml config\config.yaml
 # Edit config/config.yaml (defaults work out of the box with Ollama & AivisSpeech)
 ```
 
-### 3. Launch Senjougahara
+### 4. Launch Senjougahara
 
 ```powershell
 # Run the complete system (Brain + Voice Pipeline + Avatar)
 .\scripts\dev.ps1
 ```
 
-Or run the Brain backend directly:
+Or run processes individually in separate terminals:
 
 ```powershell
+# Terminal 1: Brain (Voice + AI)
 python -m brain.main
+
+# Terminal 2: Avatar (3D Character)
+npm --prefix avatar run start:electron
 ```
 
 ### 4. Talk to Senjougahara (Voice Mode — Primary)
