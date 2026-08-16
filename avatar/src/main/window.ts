@@ -18,15 +18,38 @@ export function isRecreating(): boolean {
   return isRecreatingWindow;
 }
 
-export function updateCharacterBounds(bounds: { x: number; y: number; width?: number; height?: number }): void {
-  const halfWidth = (bounds.width ?? 280) / 2;
-  const halfHeight = (bounds.height ?? 480) / 2;
-  currentCharacterBounds = {
-    minX: bounds.x - halfWidth,
-    maxX: bounds.x + halfWidth,
-    minY: bounds.y - halfHeight,
-    maxY: bounds.y + halfHeight,
-  };
+export function updateCharacterBounds(bounds: {
+  minX?: number;
+  maxX?: number;
+  minY?: number;
+  maxY?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}): void {
+  if (
+    bounds.minX !== undefined &&
+    bounds.maxX !== undefined &&
+    bounds.minY !== undefined &&
+    bounds.maxY !== undefined
+  ) {
+    currentCharacterBounds = {
+      minX: bounds.minX,
+      maxX: bounds.maxX,
+      minY: bounds.minY,
+      maxY: bounds.maxY,
+    };
+  } else if (bounds.x !== undefined && bounds.y !== undefined) {
+    const halfWidth = (bounds.width ?? 280) / 2;
+    const halfHeight = (bounds.height ?? 480) / 2;
+    currentCharacterBounds = {
+      minX: bounds.x - halfWidth,
+      maxX: bounds.x + halfWidth,
+      minY: bounds.y - halfHeight,
+      maxY: bounds.y + halfHeight,
+    };
+  }
 }
 
 export function startCursorPolling(): void {
@@ -157,7 +180,12 @@ export function createWindow(): void {
     console.error(`[AVATAR ERROR] Failed to load renderer page: ${errorDescription} (code: ${errorCode})`);
   });
 
-  // Hotkeys: Ctrl+, (toggle mode) | Ctrl+Shift+I/F12 (DevTools) | Ctrl+Alt+I (Emergency Mouse ON) | Ctrl+Home (Reset Position)
+  // Hotkeys:
+  // - Ctrl+, : Toggle window mode (Normal vs Settings)
+  // - Ctrl+Shift+I / F12 : DevTools
+  // - Ctrl+Alt+I : Emergency mouse interactivity ON
+  // - Ctrl+Home : Reset character position to center
+  // - Ctrl+0 : Preset bottom-left waist-up close-up view
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       if (input.key === ',' && input.control) {
@@ -178,6 +206,10 @@ export function createWindow(): void {
         event.preventDefault();
         mainWindow?.webContents.send('locomotion:reset-to-center');
         console.log('[desktop-mascot-mcp] Reset character to center (Ctrl+Home)');
+      } else if ((input.key === '0' || input.key === 'Digit0' || input.key === 'Numpad0') && input.control && !input.alt && !input.shift) {
+        event.preventDefault();
+        mainWindow?.webContents.send('preset:bottom-left-waist-up');
+        console.log('[desktop-mascot-mcp] Preset bottom-left waist-up triggered (Ctrl+0)');
       }
     }
   });

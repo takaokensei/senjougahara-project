@@ -168,6 +168,28 @@ describe('before-input-event によるモード切替', () => {
     expect(event.preventDefault).toHaveBeenCalled();
     expect(win.webContents.send).toHaveBeenCalledWith('locomotion:reset-to-center');
   });
+
+  it('Ctrl+0 envia evento preset:bottom-left-waist-up para o renderer', async () => {
+    const mod = await loadWindowModule();
+    mod.createWindow();
+    const win = FakeWindow.instances[0];
+    const event = { preventDefault: vi.fn() };
+    inputHandler(win)(event, { type: 'keyDown', key: '0', control: true });
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(win.webContents.send).toHaveBeenCalledWith('preset:bottom-left-waist-up');
+  });
+});
+
+describe('updateCharacterBounds', () => {
+  it('aceita minX, maxX, minY, maxY diretamente', async () => {
+    const mod = await loadWindowModule();
+    expect(() => mod.updateCharacterBounds({ minX: 100, maxX: 400, minY: 200, maxY: 600 })).not.toThrow();
+  });
+
+  it('aceita x, y, width, height', async () => {
+    const mod = await loadWindowModule();
+    expect(() => mod.updateCharacterBounds({ x: 300, y: 400, width: 200, height: 400 })).not.toThrow();
+  });
 });
 
 describe('toggleWindowMode', () => {

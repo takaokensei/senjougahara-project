@@ -47,4 +47,8 @@ export function registerIpcHandlers(): void {
   ipcMain.on('locomotion:update-position', (_event: any, data: { x: number; y: number; width?: number; height?: number }) => {
     updateCharacterBounds(data);
   });
+
+  ipcMain.on('locomotion:update-bounds', (_event: any, bounds: any) => {
+    updateCharacterBounds(bounds);
+  });
 }

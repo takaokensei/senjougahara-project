@@ -123,6 +123,8 @@ export class VRMRenderer {
   }
 
   startAnimation(): void {
+    let lastBoundsUpdate = 0;
+
     const animate = () => {
       requestAnimationFrame(animate);
 
@@ -133,9 +135,123 @@ export class VRMRenderer {
       this.controls.update();
 
       this.renderer.render(this.scene, this.camera);
+
+      const now = performance.now();
+      if (now - lastBoundsUpdate > 50) {
+        lastBoundsUpdate = now;
+        this.emitScreenBounds();
+      }
     };
 
     animate();
+  }
+
+  private emitScreenBounds(): void {
+    if (!this.vrm || typeof window === 'undefined' || !(window as any).vrmAPI?.updateCharacterBounds) {
+      return;
+    }
+
+    try {
+      const box = new THREE.Box3().setFromObject(this.vrm.scene);
+      if (box.isEmpty()) return;
+
+      const corners = [
+        new THREE.Vector3(box.min.x, box.min.y, box.min.z),
+        new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+        new THREE.Vector3(box.min.x, box.max.y, box.min.z),
+        new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+        new THREE.Vector3(box.max.x, box.min.y, box.min.z),
+        new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+        new THREE.Vector3(box.max.x, box.max.y, box.min.z),
+        new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+      ];
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      const halfW = window.innerWidth / 2;
+      const halfH = window.innerHeight / 2;
+
+      for (const corner of corners) {
+        corner.project(this.camera);
+        const screenX = (corner.x * halfW) + halfW;
+        const screenY = (-(corner.y * halfH)) + halfH;
+
+        if (screenX < minX) minX = screenX;
+        if (screenX > maxX) maxX = screenX;
+        if (screenY < minY) minY = screenY;
+        if (screenY > maxY) maxY = screenY;
+      }
+
+      const padding = 20;
+      (window as any).vrmAPI.updateCharacterBounds({
+        minX: Math.max(0, Math.round(minX - padding)),
+        maxX: Math.min(window.innerWidth, Math.round(maxX + padding)),
+        minY: Math.max(0, Math.round(minY - padding)),
+        maxY: Math.min(window.innerHeight, Math.round(maxY + padding)),
+      });
+    } catch {
+      // Safe fallback
+    }
+  }
+
+  animateCameraTo(
+    targetPos: { x: number; y: number; z: number },
+    targetLookAt: { x: number; y: number; z: number },
+    durationMs: number = 800
+  ): void {
+    const startPos = this.camera.position.clone();
+    const startTarget = this.controls.target.clone();
+    const endPos = new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
+    const endTarget = new THREE.Vector3(targetLookAt.x, targetLookAt.y, targetLookAt.z);
+
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1.0, elapsed / durationMs);
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      this.camera.position.lerpVectors(startPos, endPos, ease);
+      this.controls.target.lerpVectors(startTarget, endTarget, ease);
+      this.controls.update();
+
+      if (progress < 1.0) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }
+
+  applyPresetBottomLeftWaistUp(): void {
+    this.locomotion.stop();
+
+    const targetPos = {
+      x: Math.round(window.innerWidth * 0.16),
+      y: Math.round(window.innerHeight * 0.72),
+    };
+
+    this.locomotion.wanderTo(targetPos, 'walk', 1000, () => {
+      this.locomotion.startWanderLoop();
+    });
+
+    this.animateCameraTo(
+      { x: 0, y: 1.18, z: -0.65 },
+      { x: 0, y: 1.15, z: 0 },
+      1000
+    );
+  }
+
+  resetToCenterAndDefaultCamera(): void {
+    this.locomotion.resetToCenter();
+    this.animateCameraTo(
+      { x: 0, y: 1.3, z: -1.5 },
+      { x: 0, y: 1.2, z: 0 },
+      1000
+    );
   }
 
   getVRM(): VRM | null {

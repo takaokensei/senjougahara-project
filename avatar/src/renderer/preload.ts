@@ -24,8 +24,14 @@ contextBridge.exposeInMainWorld('vrmAPI', {
   updateCharacterPosition: (pos: { x: number; y: number; width?: number; height?: number }) => {
     ipcRenderer.send('locomotion:update-position', pos);
   },
+  updateCharacterBounds: (bounds: { minX: number; maxX: number; minY: number; maxY: number }) => {
+    ipcRenderer.send('locomotion:update-bounds', bounds);
+  },
   onResetToCenter: (callback: () => void) => {
     ipcRenderer.on('locomotion:reset-to-center', () => callback());
+  },
+  onPresetBottomLeftWaistUp: (callback: () => void) => {
+    ipcRenderer.on('preset:bottom-left-waist-up', () => callback());
   },
   // Senjougahara Bridge APIs
   onBridgeCommand: (callback: (command: any) => void) => {
