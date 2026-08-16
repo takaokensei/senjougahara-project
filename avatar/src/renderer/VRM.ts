@@ -99,6 +99,7 @@ async function init() {
     setupIPCListeners();
     setupCanvasClick(canvas);
     setupMouseHoverTracking();
+    setupWindowAwarenessPolling();
     restoreWindowBounds();
     setupBeforeUnload();
     console.log('[Senjougahara] VRM Renderer initialized successfully');
@@ -130,6 +131,45 @@ function setupMouseHoverTracking() {
       (window as any).vrmAPI?.setIgnoreMouseEvents?.(shouldIgnore, true);
     }
   });
+}
+
+function setupWindowAwarenessPolling() {
+  if (!vrmRenderer) return;
+  const locomotion = vrmRenderer.getLocomotion();
+  const brainAwarenessUrl = 'http://127.0.0.1:8766/awareness/foreground-window';
+
+  const checkForegroundWindow = async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const res = await fetch(
+        `${brainAwarenessUrl}?screen_width=${window.innerWidth}&screen_height=${window.innerHeight}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.is_likely_fullscreen_content && data.window) {
+          locomotion.avoidArea = {
+            x: data.window.x,
+            y: data.window.y,
+            width: data.window.width,
+            height: data.window.height,
+          };
+        } else {
+          locomotion.avoidArea = null;
+        }
+      }
+    } catch {
+      // Degraded/disconnected mode: no restriction
+      locomotion.avoidArea = null;
+    }
+  };
+
+  // Immediate check then poll every 6s
+  checkForegroundWindow();
+  window.setInterval(checkForegroundWindow, 6000);
 }
 
 function setupCanvasClick(canvas: HTMLCanvasElement) {
