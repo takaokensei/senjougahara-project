@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getMainWindow } from './window';
+import { getMainWindow, updateCharacterBounds } from './window.js';
 
 export function handleVowelCommand(data: { vowel: 'a' | 'i' | 'u' | 'e' | 'o' | null }): void {
   const win = getMainWindow();
@@ -42,5 +42,9 @@ export function registerIpcHandlers(): void {
     if (win && typeof (win as any).setIgnoreMouseEvents === 'function') {
       (win as any).setIgnoreMouseEvents(ignore, options || { forward: true });
     }
+  });
+
+  ipcMain.on('locomotion:update-position', (_event: any, data: { x: number; y: number; width?: number; height?: number }) => {
+    updateCharacterBounds(data);
   });
 }

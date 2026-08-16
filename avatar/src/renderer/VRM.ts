@@ -9,6 +9,9 @@ declare global {
       onSpeak: (callback: (data: { text: string; emotion?: string }) => void) => void;
       onAnimation: (callback: (animation: string) => void) => void;
       setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => void;
+      setIgnoreMouseEvents?: (ignore: boolean, forward?: boolean) => void;
+      updateCharacterPosition?: (pos: { x: number; y: number; width?: number; height?: number }) => void;
+      onResetToCenter?: (callback: () => void) => void;
       onBridgeCommand?: (callback: (command: any) => void) => void;
       onBrainConnected?: (callback: () => void) => void;
       sendActivate?: (source: 'hotkey' | 'wake_word' | 'click') => void;
@@ -98,7 +101,6 @@ async function init() {
     vrmRenderer.startAnimation();
     setupIPCListeners();
     setupCanvasClick(canvas);
-    setupMouseHoverTracking();
     setupWindowAwarenessPolling();
     restoreWindowBounds();
     setupBeforeUnload();
@@ -114,23 +116,6 @@ async function init() {
       `<em>(Press <kbd>Ctrl+Shift+I</kbd> or <kbd>F12</kbd> for DevTools)</em>`
     );
   }
-}
-
-function setupMouseHoverTracking() {
-  let lastIgnoreState = true;
-  window.addEventListener('mousemove', (e) => {
-    if (!vrmRenderer) return;
-    const currentPos = vrmRenderer.getLocomotion().getCurrentPosition();
-    const dx = Math.abs(e.clientX - currentPos.x);
-    const dy = Math.abs(e.clientY - currentPos.y);
-    const isOverCharacter = dx < 150 && dy < 260;
-
-    const shouldIgnore = !isOverCharacter;
-    if (shouldIgnore !== lastIgnoreState) {
-      lastIgnoreState = shouldIgnore;
-      (window as any).vrmAPI?.setIgnoreMouseEvents?.(shouldIgnore, true);
-    }
-  });
 }
 
 function setupWindowAwarenessPolling() {
@@ -330,6 +315,11 @@ function setupIPCListeners() {
 
   window.vrmAPI.onAnimation((animation) => {
     vrmRenderer?.playAnimation(animation);
+  });
+
+  window.vrmAPI.onResetToCenter?.(() => {
+    console.log('[Senjougahara] Received reset-to-center command');
+    vrmRenderer?.getLocomotion().resetToCenter();
   });
 
   // Senjougahara Bridge Commands Handler

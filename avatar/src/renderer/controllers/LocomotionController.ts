@@ -1,4 +1,4 @@
-﻿/**
+/**
  * avatar/src/renderer/controllers/LocomotionController.ts
  *
  * Coordinates character locomotion, smooth spatial interpolation across the screen,
@@ -144,6 +144,30 @@ export class LocomotionController {
     if (!this.vrm) return;
     const world = screenToWorld(this.currentScreenPos, this.bounds, this.cameraParams);
     this.vrm.scene.position.set(world.x, world.y, world.z);
+
+    if (typeof window !== 'undefined' && (window as any).vrmAPI?.updateCharacterPosition) {
+      try {
+        (window as any).vrmAPI.updateCharacterPosition({
+          x: this.currentScreenPos.x,
+          y: this.currentScreenPos.y,
+          width: 280,
+          height: 480,
+        });
+      } catch {
+        // Safe fallback
+      }
+    }
+  }
+
+  resetToCenter(): void {
+    this.stop();
+    const target: ScreenPoint = {
+      x: Math.round(this.bounds.width / 2),
+      y: Math.round(this.bounds.height * 0.65),
+    };
+    this.wanderTo(target, 'walk', 1200, () => {
+      this.startWanderLoop();
+    });
   }
 
   stop(): void {

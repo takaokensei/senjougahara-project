@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('vrmAPI', {
   setIgnoreMouseEvents: (ignore: boolean, forward?: boolean) => {
     ipcRenderer.send('window:set-ignore-mouse-events', ignore, { forward: forward ?? true });
   },
+  updateCharacterPosition: (pos: { x: number; y: number; width?: number; height?: number }) => {
+    ipcRenderer.send('locomotion:update-position', pos);
+  },
+  onResetToCenter: (callback: () => void) => {
+    ipcRenderer.on('locomotion:reset-to-center', () => callback());
+  },
   // Senjougahara Bridge APIs
   onBridgeCommand: (callback: (command: any) => void) => {
     ipcRenderer.on('bridge:command', (_event: any, command: any) => callback(command));
