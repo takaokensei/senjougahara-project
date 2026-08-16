@@ -14,12 +14,21 @@ All endpoints are served by a single uvicorn instance on 127.0.0.1:8766
 
 from __future__ import annotations
 
+import io
+import sys
+
+# Force UTF-8 on Windows console stdout/stderr to prevent cp1252 UnicodeEncodeError
+if sys.platform == "win32":
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "buffer"):
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 import asyncio
 import logging
 import logging.handlers
 import os
 import signal
-import sys
 from pathlib import Path
 
 # Silence Hugging Face Windows symlink warnings
@@ -33,7 +42,7 @@ def _configure_logging(log_dir: Path, level: str) -> None:
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
     fmt_short = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
     fmt_full = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    console = logging.StreamHandler(sys.stdout)
+    console = logging.StreamHandler(stream=sys.stdout)
     console.setFormatter(fmt_short)
     root.addHandler(console)
     fh = logging.handlers.RotatingFileHandler(

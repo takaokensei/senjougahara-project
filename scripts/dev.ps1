@@ -77,6 +77,8 @@ Write-Host "  Senjougahara Dev Mode" -ForegroundColor Cyan
 Write-Host ("=" * 60) -ForegroundColor Cyan
 Write-Host ""
 
+$env:PYTHONUTF8 = "1"
+
 $brainJob   = $null
 $avatarJob  = $null
 
@@ -84,6 +86,7 @@ if (-not $AvatarOnly) {
     Write-Host "[BRAIN] Starting Python brain..." -ForegroundColor Yellow
     $brainJob = Start-Job -ScriptBlock {
         param($root, $py)
+        $env:PYTHONUTF8 = "1"
         Set-Location $root
         & $py -m brain.main 2>&1 | ForEach-Object { "[BRAIN] $_" }
     } -ArgumentList $ProjectRoot, $BrainPython
