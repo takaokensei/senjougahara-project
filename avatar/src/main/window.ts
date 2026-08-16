@@ -1,6 +1,4 @@
-/// <reference types="node" />
-
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, screen } from 'electron';
 import type { BrowserWindow as BrowserWindowType } from 'electron';
 import * as path from 'path';
 
@@ -22,9 +20,30 @@ export function createWindow(): void {
 
   const preloadPath = path.join(__dirname, '../renderer/preload.js');
 
+  let windowWidth = 800;
+  let windowHeight = 600;
+  let windowX: number | undefined;
+  let windowY: number | undefined;
+
+  if (isNormalMode) {
+    try {
+      const primary = screen.getPrimaryDisplay();
+      if (primary && primary.workAreaSize) {
+        windowWidth = primary.workAreaSize.width;
+        windowHeight = primary.workAreaSize.height;
+        windowX = primary.workArea?.x || 0;
+        windowY = primary.workArea?.y || 0;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    x: windowX,
+    y: windowY,
+    width: windowWidth,
+    height: windowHeight,
     transparent: isNormalMode,
     backgroundColor: isNormalMode ? '#00000000' : '#222222',
     frame: !isNormalMode,
@@ -37,6 +56,10 @@ export function createWindow(): void {
       preload: preloadPath,
     },
   });
+
+  if (isNormalMode && typeof (mainWindow as any).setIgnoreMouseEvents === 'function') {
+    (mainWindow as any).setIgnoreMouseEvents(true, { forward: true });
+  }
 
   // Forward renderer console logs to the Node terminal for dev visibility
   mainWindow.webContents.on('console-message', (event: any, ...args: any[]) => {

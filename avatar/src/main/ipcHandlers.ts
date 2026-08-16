@@ -36,4 +36,11 @@ export function registerIpcHandlers(): void {
       win.setBounds(bounds);
     }
   });
+
+  ipcMain.on('window:set-ignore-mouse-events', (event: any, ignore: boolean, options?: { forward?: boolean }) => {
+    const win = getMainWindow();
+    if (win && typeof (win as any).setIgnoreMouseEvents === 'function') {
+      (win as any).setIgnoreMouseEvents(ignore, options || { forward: true });
+    }
+  });
 }

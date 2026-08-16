@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('vrmAPI', {
   setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => {
     ipcRenderer.send('set-window-bounds', bounds);
   },
+  setIgnoreMouseEvents: (ignore: boolean, forward?: boolean) => {
+    ipcRenderer.send('window:set-ignore-mouse-events', ignore, { forward: forward ?? true });
+  },
   // Senjougahara Bridge APIs
   onBridgeCommand: (callback: (command: any) => void) => {
     ipcRenderer.on('bridge:command', (_event: any, command: any) => callback(command));
