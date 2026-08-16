@@ -124,3 +124,44 @@ class TestParseStructuredResponse:
         r = parse_structured_response(raw)
         assert r.text == "こんにちは。 (Olá.)"
         assert r.emotion == Emotion.HAPPY
+
+    def test_sync_parse_does_not_block_on_cjk(self):
+        """parse_structured_response must execute synchronously without any network I/O."""
+        raw = '{"japanese_text": "了解したわ。", "portuguese_translation": "明白", "emotion": "neutral"}'
+        # Should parse instantly and clear the CJK translation without making HTTP requests
+        r = parse_structured_response(raw)
+        assert r.japanese_text == "了解したわ。"
+        assert r.portuguese_translation is None
+        assert r.text == "了解したわ。"
+
+
+class TestAsyncTranslation:
+    @pytest.mark.asyncio
+    async def test_ensure_portuguese_translation_success(self, monkeypatch):
+        from brain.agent.structured_output import ensure_portuguese_translation
+
+        async def mock_translate(text: str, timeout: float = 2.0) -> str:
+            return "Entendido."
+
+        monkeypatch.setattr("brain.agent.structured_output.async_translate_to_pt", mock_translate)
+
+        resp = StructuredResponse(japanese_text="了解したわ。", emotion=Emotion.NEUTRAL)
+        assert resp.portuguese_translation is None
+
+        updated = await ensure_portuguese_translation(resp)
+        assert updated.portuguese_translation == "Entendido."
+        assert updated.text == "了解したわ。 (Entendido.)"
+
+    @pytest.mark.asyncio
+    async def test_ensure_portuguese_translation_failure_preserves_text_without_crash(self, monkeypatch):
+        from brain.agent.structured_output import ensure_portuguese_translation
+
+        async def mock_translate_fail(text: str, timeout: float = 2.0) -> str:
+            return ""  # Simulates network timeout or outage
+
+        monkeypatch.setattr("brain.agent.structured_output.async_translate_to_pt", mock_translate_fail)
+
+        resp = StructuredResponse(japanese_text="了解したわ。", emotion=Emotion.NEUTRAL)
+        updated = await ensure_portuguese_translation(resp)
+        assert updated.portuguese_translation is None
+        assert updated.text == "了解したわ。"  # Original Japanese text preserved safely

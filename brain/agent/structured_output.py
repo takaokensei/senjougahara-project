@@ -48,30 +48,43 @@ logger = logging.getLogger(__name__)
 _CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uF900-\uFAFF]")
 _PAREN_GROUPS_RE = re.compile(r"\(([^)]*)\)")
 
+# Circuit breaker state for translation network calls
+_CIRCUIT_BREAKER_UNTIL = 0.0
+_CIRCUIT_BREAKER_COOLDOWN = 30.0  # seconds cooldown after failure
 
-def _translate_to_pt(text: str) -> str:
-    """Fast auto-translation of Japanese text to Brazilian Portuguese."""
-    import httpx
+
+async def async_translate_to_pt(text: str, timeout: float = 2.0) -> str:
+    """
+    Fast async auto-translation of Japanese text to Brazilian Portuguese.
+    Uses httpx.AsyncClient with a short timeout (2.0s) and a circuit breaker
+    so that network latency or outages never freeze the async event loop.
+    """
+    global _CIRCUIT_BREAKER_UNTIL
+    import time
+    if time.time() < _CIRCUIT_BREAKER_UNTIL:
+        return ""
     try:
+        import httpx
         url = "https://translate.googleapis.com/translate_a/single"
         params = {"client": "gtx", "sl": "ja", "tl": "pt", "dt": "t", "q": text}
-        r = httpx.get(url, params=params, timeout=2.5)
-        if r.status_code == 200:
-            return "".join([p[0] for p in r.json()[0] if p[0]]).strip()
-    except Exception:
-        pass
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.get(url, params=params)
+            if r.status_code == 200:
+                return "".join([p[0] for p in r.json()[0] if p[0]]).strip()
+            _CIRCUIT_BREAKER_UNTIL = time.time() + _CIRCUIT_BREAKER_COOLDOWN
+    except Exception as exc:
+        logger.debug("Translation service unavailable (circuit breaker tripped): %s", exc)
+        _CIRCUIT_BREAKER_UNTIL = time.time() + _CIRCUIT_BREAKER_COOLDOWN
     return ""
 
 
 def sanitize_bilingual_text(raw_text: str) -> str:
     """
-    Sanitize text to guarantee at most ONE (Portuguese) translation parenthesis,
-    and prevent Chinese/CJK translation leakage.
-    
+    Sanitize text synchronously without network I/O:
     1. If multiple parentheses groups exist (e.g. `Frase (trad) ("..." 译为 "...")`):
        Keep only the base text and the first parenthetical group, discarding trailing meta-notes.
-    2. Check for CJK characters in the translation parenthesis:
-       If CJK is found, log a clear warning and auto-correct using _translate_to_pt.
+    2. If CJK or Chinese translation markers ('译', '中文') are detected in the translation parenthesis:
+       Log a warning and strip the invalid non-Portuguese parenthetical note.
     """
     text = raw_text.strip()
     matches = list(_PAREN_GROUPS_RE.finditer(text))
@@ -91,13 +104,10 @@ def sanitize_bilingual_text(raw_text: str) -> str:
 
     if _CJK_RE.search(first_paren_content) or "译" in first_paren_content or "中文" in first_paren_content:
         logger.warning(
-            "Detected non-Portuguese (CJK) text inside translation parentheses: '%s' in text: '%s'. Auto-correcting to Portuguese.",
+            "Detected non-Portuguese (CJK) text inside translation parentheses: '%s' in text: '%s'. Stripping invalid translation.",
             first_paren_content, text
         )
-        if base_japanese:
-            auto_pt = _translate_to_pt(base_japanese)
-            if auto_pt:
-                first_paren_content = auto_pt
+        first_paren_content = ""
 
     if base_japanese and first_paren_content:
         return f"{base_japanese} ({first_paren_content})"
@@ -127,34 +137,35 @@ class StructuredResponse(BaseModel):
 
     @model_validator(mode="after")
     def populate_or_validate_text(self) -> StructuredResponse:
-        # If japanese_text is set, sanitize or auto-translate the Portuguese translation
+        """
+        Synchronous validation and structural normalization.
+        No blocking network calls are made here.
+        """
         if self.japanese_text:
             has_cjk = bool(self.portuguese_translation and _CJK_RE.search(self.portuguese_translation))
-            if not self.portuguese_translation or has_cjk or (self.portuguese_translation and "译" in self.portuguese_translation):
-                if has_cjk:
-                    logger.warning(
-                        "Detected non-Portuguese (CJK) text in portuguese_translation field: '%s'. Auto-correcting.",
-                        self.portuguese_translation
-                    )
-                auto_pt = _translate_to_pt(self.japanese_text)
-                if auto_pt:
-                    self.portuguese_translation = auto_pt
+            has_zh_marker = bool(self.portuguese_translation and ("译" in self.portuguese_translation or "中文" in self.portuguese_translation))
+            if has_cjk or has_zh_marker:
+                logger.warning(
+                    "Detected non-Portuguese (CJK) text in portuguese_translation field: '%s'. Clearing for async translation.",
+                    self.portuguese_translation
+                )
+                self.portuguese_translation = None
 
-            if self.portuguese_translation:
-                self.text = f"{self.japanese_text} ({self.portuguese_translation})"
+            if self.portuguese_translation and self.portuguese_translation.strip():
+                self.text = f"{self.japanese_text} ({self.portuguese_translation.strip()})"
             else:
                 self.text = self.japanese_text
 
         elif not self.text or not self.text.strip():
-            if self.portuguese_translation:
-                self.text = self.portuguese_translation
+            if self.portuguese_translation and self.portuguese_translation.strip():
+                self.text = self.portuguese_translation.strip()
             else:
                 raise ValueError("text must not be blank")
         else:
-            # Defensively sanitize any multiple parentheses or CJK in text
             self.text = sanitize_bilingual_text(self.text)
 
         return self
+
 
     @field_validator("emotion", mode="before")
     @classmethod
@@ -201,6 +212,25 @@ class StructuredResponse(BaseModel):
             except ValueError:
                 return Priority.NORMAL
         return Priority.NORMAL
+
+
+async def ensure_portuguese_translation(response: StructuredResponse) -> StructuredResponse:
+    """
+    Async translation post-processing step run in AgentLoop.
+    Populates the Portuguese translation without blocking the Pydantic validator
+    or the async event loop.
+    """
+    if response.japanese_text and not response.portuguese_translation:
+        auto_pt = await async_translate_to_pt(response.japanese_text)
+        if auto_pt:
+            response.portuguese_translation = auto_pt
+            response.text = f"{response.japanese_text} ({auto_pt})"
+    elif response.text and "(" not in response.text and _CJK_RE.search(response.text):
+        auto_pt = await async_translate_to_pt(response.text)
+        if auto_pt:
+            response.text = f"{response.text} ({auto_pt})"
+    return response
+
 
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
