@@ -24,6 +24,7 @@ from typing import Any
 
 from brain.agent.providers.base import BaseLLMProvider, LLMResponse, ToolCall
 from brain.agent.structured_output import StructuredResponse, parse_structured_response
+from brain.permissions.emergency import EmergencyController
 from brain.permissions.policy import PermissionEngine
 from brain.tools import registry
 
@@ -40,10 +41,12 @@ class AgentLoop:
         provider: BaseLLMProvider,
         permission_engine: PermissionEngine,
         system_prompt: str,
+        emergency_controller: EmergencyController | None = None,
     ) -> None:
         self._provider = provider
         self._permissions = permission_engine
         self._system_prompt = system_prompt
+        self._emergency = emergency_controller
 
     async def process(
         self,
@@ -118,6 +121,17 @@ class AgentLoop:
         """Execute a single tool call after permission engine approval."""
         tool_name = tool_call.tool_name
         arguments = tool_call.arguments
+
+        # 1. Emergency controller gating (highest priority)
+        if self._emergency is not None:
+            can_exec, emergency_reason = self._emergency.can_execute()
+            if not can_exec:
+                logger.warning(
+                    "[EMERGENCY] Blocked tool '%s' due to emergency state: %s",
+                    tool_name,
+                    emergency_reason,
+                )
+                return {"result": emergency_reason, "is_error": True}
 
         try:
             base_risk = registry.get_tool_risk(tool_name)

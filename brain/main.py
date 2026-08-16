@@ -70,7 +70,8 @@ async def main() -> None:
     bridge = BridgeClient(host=config.bridge.host, port=config.bridge.port)
     await bridge.connect()
 
-    # ── Permission engine ────────────────────────────────────────────────────────
+    # ── Permission & Emergency Engine ────────────────────────────────────────────
+    from brain.permissions.emergency import EmergencyController
     from brain.permissions.policy import PermissionEngine, load_policy_overrides
     policy_yaml = Path(__file__).parent / "permissions" / "policy.yaml"
     policy_overrides = load_policy_overrides(policy_yaml)
@@ -79,6 +80,8 @@ async def main() -> None:
         return await bridge.request_confirmation(
             tool_name=tool_name, action_description=description, risk_tier="HIGH"
         )
+
+    emergency_controller = EmergencyController()
 
     permission_engine = PermissionEngine(
         audit_log_path=config.appdata_dir / "logs" / "audit.jsonl",
@@ -101,7 +104,17 @@ async def main() -> None:
         provider=provider,
         permission_engine=permission_engine,
         system_prompt=system_prompt,
+        emergency_controller=emergency_controller,
     )
+
+    # ── Memory (Optional fact extractor) ─────────────────────────────────────────
+    fact_memory = None
+    fact_extractor = None
+    if config.memory.enabled:
+        from brain.memory.extractor import FactExtractor
+        from brain.memory.facts import FactMemory
+        fact_memory = FactMemory(db_path=config.appdata_dir / "memory.db")
+        fact_extractor = FactExtractor(provider=provider)
 
     # ── TTS ──────────────────────────────────────────────────────────────────────
     from brain.speech.tts import TTSAdapter
@@ -167,8 +180,36 @@ async def main() -> None:
             "voice_enabled": config.stt.enabled,
             "hotkey": config.hotkey.key if config.hotkey.enabled else None,
             "wake_word": config.wake_word.phrase if config.wake_word.enabled else None,
+            "emergency": emergency_controller.status,
             "error": None,
         })
+
+    @app.post("/emergency/pause")
+    async def emergency_pause(request: Request) -> JSONResponse:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        reason = body.get("reason", "Manual emergency pause")
+        emergency_controller.pause(reason)
+        return JSONResponse({"status": "ok", "emergency": emergency_controller.status})
+
+    @app.post("/emergency/resume")
+    async def emergency_resume() -> JSONResponse:
+        ok = emergency_controller.resume()
+        return JSONResponse({
+            "status": "ok" if ok else "failed",
+            "emergency": emergency_controller.status,
+        }, status_code=200 if ok else 400)
+
+    @app.post("/emergency/kill")
+    async def emergency_kill(request: Request) -> JSONResponse:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        reason = body.get("reason", "Kill switch engaged")
+        emergency_controller.kill(reason)
+        return JSONResponse({"status": "ok", "emergency": emergency_controller.status})
+
+    @app.post("/emergency/reset")
+    async def emergency_reset() -> JSONResponse:
+        emergency_controller.reset()
+        return JSONResponse({"status": "ok", "emergency": emergency_controller.status})
 
     @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:

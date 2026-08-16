@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -27,13 +28,14 @@ from brain.speech.audio_capture import AudioRecorder
 from brain.speech.hotkey import GlobalHotkeyListener
 from brain.speech.stt import STTEngine
 from brain.speech.tts import TTSAdapter
+from brain.speech.wake_phrase import contains_wake_phrase, estimate_audio_duration_seconds
 from brain.speech.wakeword import WakeWordDetector
 
 logger = logging.getLogger(__name__)
 
 
 class VoicePipeline:
-    """Coordinates end-to-end voice interactions."""
+    """Coordinates end-to-end voice interactions with acoustic echo suppression."""
 
     def __init__(
         self,
@@ -54,6 +56,7 @@ class VoicePipeline:
         self.wakeword = wakeword
         self.conversation_history: list[dict[str, Any]] = []
         self._is_processing = False
+        self._suppress_wakeword_until: float = 0.0
         self._loop: asyncio.AbstractEventLoop | None = None
         self._wakeword_task: asyncio.Task | None = None
         self._stopped = False
@@ -114,7 +117,8 @@ class VoicePipeline:
             queue: asyncio.Queue[np.ndarray] = asyncio.Queue()
 
             def _audio_callback(indata, frames, time_info, status):
-                if not self._is_processing and not self._stopped:
+                now = time.monotonic()
+                if not self._is_processing and not self._stopped and now >= self._suppress_wakeword_until:
                     loop.call_soon_threadsafe(queue.put_nowait, indata.copy())
 
             stream = sd.InputStream(
@@ -127,10 +131,11 @@ class VoicePipeline:
             with stream:
                 while not self._stopped:
                     chunk = await queue.get()
-                    if self._is_processing:
+                    now = time.monotonic()
+                    if self._is_processing or now < self._suppress_wakeword_until:
                         continue
                     detected, name, score = await asyncio.to_thread(self.wakeword.process_frame, chunk)
-                    if detected and not self._is_processing:
+                    if detected and not self._is_processing and time.monotonic() >= self._suppress_wakeword_until:
                         logger.info("Wake word '%s' detected (confidence: %.2f)!", name, score)
                         await self.handle_activation("wake_word")
         except asyncio.CancelledError:
@@ -195,6 +200,17 @@ class VoicePipeline:
                 logger.warning("TTS synthesis failed: %s", tts_exc)
 
             # 7. Command Avatar to speak with lip-sync
+            wav_path = audio_result.get("wav_path") if audio_result else None
+            audio_duration = estimate_audio_duration_seconds(structured.text, wav_path)
+
+            # Suppress acoustic self-triggering during audio playback window (+ margin)
+            self._suppress_wakeword_until = time.monotonic() + audio_duration + 0.6
+            logger.debug(
+                "Acoustic echo suppression active for %.2fs (until +%.2fs)",
+                audio_duration,
+                audio_duration + 0.6,
+            )
+
             await self.bridge.speak(
                 text=structured.text,
                 emotion=structured.emotion.value,
@@ -204,7 +220,6 @@ class VoicePipeline:
             )
 
             # 8. Local speaker playback fallback
-            wav_path = audio_result.get("wav_path") if audio_result else None
             if wav_path and Path(wav_path).exists():
                 try:
                     import winsound
