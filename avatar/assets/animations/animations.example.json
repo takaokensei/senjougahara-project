@@ -4,7 +4,7 @@
       "enabled": true,
       "delayMin": 30000,
       "delayMax": 60000,
-      "animations": ["think", "happy", "shy", "cheer"]
+      "animations": ["show_body", "spin", "pose", "peace", "squat"]
     }
   },
   "animations": [
@@ -14,8 +14,8 @@
       "loop": true,
       "fadeTime": 0.3,
       "returnToIdle": false,
-      "category": "gesture",
-      "description": "デフォルト待機アニメーション"
+      "category": "idle",
+      "description": "Pose de repouso padrão"
     },
     {
       "name": "wave",
@@ -24,79 +24,25 @@
       "fadeTime": 0.3,
       "returnToIdle": true,
       "category": "gesture",
-      "description": "手を振る"
+      "description": "Acenar / cumprimentar (VRoid 02)"
     },
     {
-      "name": "nod",
-      "file": "nod.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "うなずき（肯定）"
-    },
-    {
-      "name": "shake",
-      "file": "shake.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "首を振る（否定）"
-    },
-    {
-      "name": "think",
-      "file": "think.vrma",
-      "loop": false,
-      "fadeTime": 0.5,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "考える"
-    },
-    {
-      "name": "clap",
-      "file": "clap.vrma",
+      "name": "greeting",
+      "file": "greeting.vrma",
       "loop": false,
       "fadeTime": 0.3,
       "returnToIdle": true,
       "category": "gesture",
-      "description": "拍手"
+      "description": "Saudação / cumprimento (VRoid 02)"
     },
     {
-      "name": "angry",
-      "file": "angry.vrma",
+      "name": "peace",
+      "file": "peace.vrma",
       "loop": false,
       "fadeTime": 0.3,
       "returnToIdle": true,
-      "category": "emotion",
-      "description": "怒り"
-    },
-    {
-      "name": "happy",
-      "file": "happy.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "幸せ"
-    },
-    {
-      "name": "surprised",
-      "file": "surprised.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "驚き"
-    },
-    {
-      "name": "shy",
-      "file": "shy.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "恥ずかしい"
+      "category": "gesture",
+      "description": "Sinal de V / Paz (VRoid 03)"
     },
     {
       "name": "cheer",
@@ -105,7 +51,124 @@
       "fadeTime": 0.3,
       "returnToIdle": true,
       "category": "emotion",
-      "description": "応援"
+      "description": "Comemorar / torcer (VRoid 03)"
+    },
+    {
+      "name": "shoot",
+      "file": "shoot.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Apontar / gesto de atirar (VRoid 04)"
+    },
+    {
+      "name": "spin",
+      "file": "spin.vrma",
+      "loop": false,
+      "fadeTime": 0.4,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Girar / pirueta (VRoid 05)"
+    },
+    {
+      "name": "pose",
+      "file": "pose.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Pose de modelo (VRoid 06)"
+    },
+    {
+      "name": "squat",
+      "file": "squat.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Agachar / flexionar (VRoid 07)"
+    },
+    {
+      "name": "show_body",
+      "file": "show_body.vrma",
+      "loop": false,
+      "fadeTime": 0.4,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Apresentação de corpo inteiro (VRoid 01)"
+    },
+    {
+      "name": "nod",
+      "file": "nod.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Aceno afirmativo com a cabeça"
+    },
+    {
+      "name": "shake",
+      "file": "shake.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Negar com a cabeça"
+    },
+    {
+      "name": "think",
+      "file": "think.vrma",
+      "loop": false,
+      "fadeTime": 0.5,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Pensativo"
+    },
+    {
+      "name": "clap",
+      "file": "clap.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "Bater palmas"
+    },
+    {
+      "name": "angry",
+      "file": "angry.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "Irritada / brava"
+    },
+    {
+      "name": "happy",
+      "file": "happy.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "Feliz"
+    },
+    {
+      "name": "surprised",
+      "file": "surprised.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "Surpresa"
+    },
+    {
+      "name": "shy",
+      "file": "shy.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "Tímida / envergonhada"
     },
     {
       "name": "walk",
@@ -114,7 +177,7 @@
       "fadeTime": 0.3,
       "returnToIdle": false,
       "category": "locomotion",
-      "description": "andando"
+      "description": "Andando"
     },
     {
       "name": "run",
@@ -123,7 +186,7 @@
       "fadeTime": 0.2,
       "returnToIdle": false,
       "category": "locomotion",
-      "description": "correndo"
+      "description": "Correndo"
     }
   ]
 }

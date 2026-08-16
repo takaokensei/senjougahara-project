@@ -1,4 +1,4 @@
-﻿# Third-Party Notices
+# Third-Party Notices
 
 This file documents all third-party components used in the Senjougahara project,
 their licenses, and their upstream sources.
@@ -78,3 +78,13 @@ details, especially before any commercial distribution.
 
 - AivisSpeech: https://aivis-project.com/
 - VOICEVOX: https://voicevox.hiroshiba.jp/
+
+---
+
+## VRM Animation Files (.vrma)
+
+**Source:** VRoid Project (pixiv Inc.) — VRMアニメーション7種セット  
+**URL:** https://booth.pm/ja/items/5512385  
+**License:** Free for personal and commercial use with credit.  
+**Required Attribution:** "Character animation credits to pixiv Inc.'s VRoid Project"
+
