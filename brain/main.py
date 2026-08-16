@@ -235,7 +235,22 @@ async def main() -> None:
 
     conversation_history = voice_pipeline.conversation_history
 
+    # ── Proactivity Observer (Spontaneous Observations) ─────────────────────────
+    proactivity_observer = None
+    if config.proactivity.enabled:
+        from brain.agent.proactivity import ProactivityObserver
+        proactivity_observer = ProactivityObserver(
+            config=config.proactivity,
+            agent=agent,
+            bridge=bridge,
+            provider=provider,
+            fact_memory=fact_memory if config.memory.enabled else None,
+        )
+        proactivity_observer.start()
+        logger.info("Proactivity Observer enabled (poll interval=%.1fs).", config.proactivity.poll_interval_seconds)
+
     # ── FastAPI app (single server, single port) ─────────────────────────────────
+
     app = FastAPI(title="Senjougahara Brain", docs_url=None, redoc_url=None)
 
     @app.get("/health")
@@ -404,9 +419,12 @@ async def main() -> None:
     signal.signal(signal.SIGINT, _shutdown)
 
     await server.serve()
+    if proactivity_observer is not None:
+        await proactivity_observer.stop()
     voice_pipeline.stop()
     await bridge.disconnect()
     logger.info("Brain shutdown complete.")
+
 
 
 if __name__ == "__main__":

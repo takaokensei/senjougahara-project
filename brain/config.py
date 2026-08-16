@@ -97,6 +97,15 @@ class TelegramConfig(BaseModel):
     chat_id: str = ""
 
 
+class ProactivityConfig(BaseModel):
+    enabled: bool = False
+    poll_interval_seconds: float = 30.0
+    min_cooldown_minutes: float = 12.0
+    min_window_stable_seconds: float = 20.0
+    repeat_window_minutes: float = 60.0
+    blocked_processes: list[str] = ["Teams.exe", "zoom.exe", "Discord.exe"]
+
+
 class AppConfig(BaseModel):
     personality: PersonalityConfig = PersonalityConfig()
     llm: LLMConfig = LLMConfig()
@@ -110,6 +119,8 @@ class AppConfig(BaseModel):
     logging: LoggingConfig = LoggingConfig()
     session: SessionConfig = SessionConfig()
     telegram: TelegramConfig = TelegramConfig()
+    proactivity: ProactivityConfig = ProactivityConfig()
+
 
     # Derived paths (always fixed, not configurable — to avoid path traversal)
     @property
