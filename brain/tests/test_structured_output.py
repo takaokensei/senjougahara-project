@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tests/test_structured_output.py
 
 Unit tests for the structured output schema and parser.
@@ -77,12 +77,17 @@ class TestParseStructuredResponse:
         assert r.text == "Just text"
         assert r.emotion == Emotion.NEUTRAL
 
-    def test_parse_invalid_emotion_falls_back(self):
-        # Invalid enum value should fail validation and fall back to plain text
+    def test_parse_emotion_alias_normalizes(self):
+        raw = '{"text": "hi", "emotion": "friendly"}'
+        r = parse_structured_response(raw)
+        assert r.text == "hi"
+        assert r.emotion == Emotion.HAPPY
+
+    def test_parse_unknown_emotion_falls_back_to_neutral(self):
         raw = '{"text": "hi", "emotion": "NOTANEMMOTION123"}'
         r = parse_structured_response(raw)
-        # Should have fallen back to plain-text mode
-        assert r.text  # Some non-empty text
+        assert r.text == "hi"
+        assert r.emotion == Emotion.NEUTRAL
 
     def test_serialize(self):
         r = StructuredResponse(text="Hello", emotion=Emotion.HAPPY, animation="nod")

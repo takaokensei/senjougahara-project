@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/structured_output.py
 
 Defines the canonical structured output schema that the LLM must produce:
@@ -61,6 +61,52 @@ class StructuredResponse(BaseModel):
         if not v.strip():
             raise ValueError("text must not be blank")
         return v.strip()
+
+    @field_validator("emotion", mode="before")
+    @classmethod
+    def normalize_emotion(cls, v: Any) -> Emotion:
+        if isinstance(v, Emotion):
+            return v
+        if isinstance(v, str):
+            v_clean = v.strip().lower()
+            aliases: dict[str, Emotion] = {
+                "friendly": Emotion.HAPPY,
+                "cheerful": Emotion.HAPPY,
+                "joyful": Emotion.HAPPY,
+                "excited": Emotion.HAPPY,
+                "smirk": Emotion.HAPPY,
+                "amused": Emotion.HAPPY,
+                "content": Emotion.HAPPY,
+                "thoughtful": Emotion.RELAXED,
+                "calm": Emotion.RELAXED,
+                "curious": Emotion.CONFUSED,
+                "puzzled": Emotion.CONFUSED,
+                "shocked": Emotion.SURPRISED,
+                "scared": Emotion.SURPRISED,
+                "mad": Emotion.ANGRY,
+                "furious": Emotion.ANGRY,
+                "disgusted": Emotion.ANNOYED,
+            }
+            if v_clean in aliases:
+                return aliases[v_clean]
+            try:
+                return Emotion(v_clean)
+            except ValueError:
+                return Emotion.NEUTRAL
+        return Emotion.NEUTRAL
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def normalize_priority(cls, v: Any) -> Priority:
+        if isinstance(v, Priority):
+            return v
+        if isinstance(v, str):
+            v_clean = v.strip().lower()
+            try:
+                return Priority(v_clean)
+            except ValueError:
+                return Priority.NORMAL
+        return Priority.NORMAL
 
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)

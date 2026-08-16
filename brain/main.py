@@ -20,9 +20,6 @@ import sys
 from pathlib import Path
 
 
-_AUDIO_SERVE_PORT = 8766
-
-
 def _configure_logging(log_dir: Path, level: str) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "brain.log"
@@ -49,21 +46,27 @@ async def main() -> None:
     from brain.personality.loader import load_profile
     from brain.startup.state_machine import StartupStateMachine, make_health_app
     import uvicorn
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+    from fastapi.staticfiles import StaticFiles
 
     startup = StartupStateMachine(config=config, personality_loader=load_profile)
 
-    # Health server on bridge_port + 1 (e.g., 8766)
-    health_port = config.bridge.port + 1
+    # Unified App
+    app = FastAPI(title="Senjougahara Brain", docs_url=None, redoc_url=None)
+    
+    # Health
     health_app = make_health_app(startup)
-    health_server = uvicorn.Server(uvicorn.Config(
-        health_app, host="127.0.0.1", port=health_port, log_level="warning"
-    ))
-    health_task = asyncio.create_task(health_server.serve())
+    app.mount("/health", health_app)
+
+    # Audio
+    audio_cache_dir = config.appdata_dir / "audio_cache"
+    audio_cache_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/audio", StaticFiles(directory=str(audio_cache_dir)), name="audio")
 
     success = await startup.run()
     if not success:
         logger.error("Startup failed: %s", startup.error_message)
-        health_task.cancel()
         sys.exit(1)
 
     profile = startup.personality_profile
@@ -114,7 +117,7 @@ async def main() -> None:
         speaker_id=config.tts.speaker_id,
         speed=config.tts.speed,
         pitch=config.tts.pitch,
-        audio_cache_dir=config.appdata_dir / "audio_cache",
+        audio_cache_dir=audio_cache_dir,
     )
 
     conversation_history: list[dict] = []
@@ -126,14 +129,7 @@ async def main() -> None:
 
     bridge.on("activate", handle_activate)
 
-    # Chat REST endpoint
-    from fastapi import FastAPI, Request
-    from fastapi.responses import JSONResponse
-    from fastapi.staticfiles import StaticFiles
-
-    chat_app = FastAPI(title="Senjougahara Chat", docs_url=None, redoc_url=None)
-
-    @chat_app.post("/chat")
+    @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:
         body = await request.json()
         user_message = body.get("message", "").strip()
@@ -147,7 +143,6 @@ async def main() -> None:
             structured = await agent.process(user_message, conversation_history)
             conversation_history.append({"role": "user", "content": user_message})
             conversation_history.append({"role": "assistant", "content": structured.text})
-            # Keep history bounded
             if len(conversation_history) > 40:
                 conversation_history[:] = conversation_history[-40:]
 
@@ -182,37 +177,30 @@ async def main() -> None:
             await bridge.set_state("ERROR")
             return JSONResponse({"error": str(exc)}, status_code=500)
 
-    # Audio file server
-    audio_cache_dir = config.appdata_dir / "audio_cache"
-    audio_cache_dir.mkdir(parents=True, exist_ok=True)
-    audio_app = FastAPI(docs_url=None, redoc_url=None)
-    audio_app.mount("/audio", StaticFiles(directory=str(audio_cache_dir)), name="audio")
-
-    chat_port = config.bridge.port + 2   # 8767
-    chat_server = uvicorn.Server(uvicorn.Config(
-        chat_app, host="127.0.0.1", port=chat_port, log_level="warning"
-    ))
-    audio_server = uvicorn.Server(uvicorn.Config(
-        audio_app, host="127.0.0.1", port=_AUDIO_SERVE_PORT, log_level="warning"
+    server = uvicorn.Server(uvicorn.Config(
+        app, host="127.0.0.1", port=config.bridge.port + 1, log_level="warning"
     ))
 
     await bridge.set_state("IDLE", reason="brain ready")
-    logger.info("READY. Chat: http://127.0.0.1:%d/chat | Health: http://127.0.0.1:%d/health", chat_port, health_port)
+    logger.info("READY. API: http://127.0.0.1:%d", config.bridge.port + 1)
 
     stop_event = asyncio.Event()
 
-    def _shutdown(signum, frame):
-        logger.info("Signal %d received. Shutting down.", signum)
+    def _shutdown():
+        logger.info("Shutdown signal received.")
         stop_event.set()
 
-    signal.signal(signal.SIGINT, _shutdown)
-    signal.signal(signal.SIGTERM, _shutdown)
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, lambda s, f: _shutdown())
+        except ValueError:
+            pass
 
-    await asyncio.gather(
-        chat_server.serve(),
-        audio_server.serve(),
-        stop_event.wait(),
-    )
+    async def run_server():
+        await server.serve()
+
+    await asyncio.gather(run_server(), stop_event.wait())
+    server.should_exit = True
     await bridge.disconnect()
     logger.info("Brain shutdown complete.")
 
