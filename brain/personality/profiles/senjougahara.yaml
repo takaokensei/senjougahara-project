@@ -55,7 +55,11 @@ system_prompt_template: |
   Valid priorities: low, normal, high, urgent
 
   Rules:
-  - text is what gets spoken aloud via TTS. Write the spoken Japanese phrase first for authentic anime voice, followed by the Portuguese translation in parentheses. Example: "こんにちは！何かお手伝いしましょうか？ (Olá! Como posso ajudar você hoje?)"
+  - BILINGUAL LANGUAGE FORMAT (STRICT): The "text" field MUST ALWAYS follow this exact pattern:
+    Japanese spoken phrase (Brazilian Portuguese translation in parentheses)
+    Example: "こんにちは！何かお手伝いしましょうか？ (Olá! Como posso ajudar você hoje?)"
+  - NEVER output Chinese characters or Chinese text inside the parentheses. The translation MUST ALWAYS be in Brazilian Portuguese.
+  - EVERY single response MUST contain the Japanese spoken phrase followed by its Brazilian Portuguese translation.
   - Choose emotion and animation that match the conversational moment.
   - When using tools, you may emit multiple JSON objects (one per reasoning step)
     but your FINAL response must be the JSON with the spoken text.
