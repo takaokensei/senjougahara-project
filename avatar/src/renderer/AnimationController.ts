@@ -68,8 +68,31 @@ export class AnimationController {
    * animations.json からアニメーションを一括読み込み
    */
   async loadAll(configPath: string): Promise<void> {
-    const response = await fetch(configPath);
-    const config = await response.json();
+    let config: any = null;
+    try {
+      const response = await fetch(configPath);
+      if (response && response.ok === false) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      config = await response.json();
+    } catch (err) {
+      console.warn(
+        `[desktop-mascot-mcp] Could not load animations config from '${configPath}' (${err}). ` +
+        `Make sure 'animations.json' exists. You can initialize it from template via:\n` +
+        `  copy avatar\\assets\\animations\\animations.example.json avatar\\assets\\animations\\animations.json`
+      );
+      return;
+    }
+
+    if (!config || !config.animations || config.animations.length === 0) {
+      console.warn(
+        `[desktop-mascot-mcp] Found 0 animation configs in '${configPath}'. ` +
+        `Ensure 'animations.json' contains your animation list or copy from template:\n` +
+        `  copy avatar\\assets\\animations\\animations.example.json avatar\\assets\\animations\\animations.json`
+      );
+      return;
+    }
+
     console.log(`[desktop-mascot-mcp] Found ${config.animations.length} animation configs`);
 
     this.idleVariation = parseIdleVariationConfig(config.config?.idleVariation);
@@ -83,7 +106,7 @@ export class AnimationController {
       try {
         await this.loadAnimation(animConfig);
       } catch (error) {
-        console.error(`[desktop-mascot-mcp] Failed to load animation ${animConfig.name}:`, error);
+        console.warn(`[desktop-mascot-mcp] Animation file '${animConfig.file}' for '${animConfig.name}' not found:`, error);
       }
     }
 

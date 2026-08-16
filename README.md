@@ -49,12 +49,15 @@ brain\.venv\Scripts\playwright install chromium
 ### 2. Setup Avatar (Electron & 3D Character)
 
 ```powershell
-# Install Node dependencies and compile TypeScript
+# 1. Initialize animation config from template if needed
+copy avatar\assets\animations\animations.example.json avatar\assets\animations\animations.json
+
+# 2. Install Node dependencies and compile TypeScript
 npm --prefix avatar install
 npm --prefix avatar run build:electron
 ```
 > [!NOTE]
-> Run `npm --prefix avatar run build:electron` whenever you modify TypeScript files in `avatar/` to recompile `dist/`.
+> Run `npm --prefix avatar run build:electron` whenever you modify TypeScript files or configuration in `avatar/` to recompile `dist/`.
 
 ### 3. Add a VRM 3D Model (Required for Visual Character)
 
