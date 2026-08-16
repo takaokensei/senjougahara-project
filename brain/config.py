@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/config.py
 
 Loads config/config.yaml + .env and exposes a typed AppConfig object.
@@ -91,6 +91,12 @@ class SessionConfig(BaseModel):
     greeting_cooldown_hours: float = 8.0
 
 
+class TelegramConfig(BaseModel):
+    enabled: bool = False
+    bot_token: str = ""
+    chat_id: str = ""
+
+
 class AppConfig(BaseModel):
     personality: PersonalityConfig = PersonalityConfig()
     llm: LLMConfig = LLMConfig()
@@ -103,6 +109,7 @@ class AppConfig(BaseModel):
     permissions: PermissionsConfig = PermissionsConfig()
     logging: LoggingConfig = LoggingConfig()
     session: SessionConfig = SessionConfig()
+    telegram: TelegramConfig = TelegramConfig()
 
     # Derived paths (always fixed, not configurable — to avoid path traversal)
     @property

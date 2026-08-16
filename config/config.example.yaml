@@ -75,3 +75,10 @@ logging:
 session:
   greeting_cooldown_hours: 8     # Minimum hours between greeting triggers
   # session_state.json is written to %LOCALAPPDATA%\Senjougahara\
+
+# ─── Remote Approval (Telegram) ───────────────────────────────────────────────
+telegram:
+  enabled: false                 # Set true to receive HIGH-tier approval prompts in Telegram
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+  chat_id: "${TELEGRAM_CHAT_ID}"
+

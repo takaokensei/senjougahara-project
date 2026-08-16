@@ -75,16 +75,49 @@ async def main() -> None:
     await bridge.connect()
 
     # ── Permission & Emergency Engine ────────────────────────────────────────────
+    from brain.comms.telegram_approval import TelegramApprovalChannel
     from brain.permissions.emergency import EmergencyController
     from brain.permissions.learning import AuthorityLearner
     from brain.permissions.policy import PermissionEngine, load_policy_overrides
     policy_yaml = Path(__file__).parent / "permissions" / "policy.yaml"
     policy_overrides = load_policy_overrides(policy_yaml)
 
+    telegram_channel = TelegramApprovalChannel(
+        bot_token=config.telegram.bot_token,
+        chat_id=config.telegram.chat_id,
+        enabled=config.telegram.enabled,
+    )
+
     async def confirmation_callback(request_id: str, tool_name: str, description: str) -> bool:
-        return await bridge.request_confirmation(
-            tool_name=tool_name, action_description=description, risk_tier="HIGH"
+        local_task = asyncio.create_task(
+            bridge.request_confirmation(
+                tool_name=tool_name, action_description=description, risk_tier="HIGH"
+            )
         )
+        telegram_task = None
+        if telegram_channel.is_active:
+            await telegram_channel.send_approval_request(
+                request_id=request_id, tool_name=tool_name, risk_tier="HIGH", action_description=description
+            )
+            telegram_task = asyncio.create_task(
+                telegram_channel.poll_for_decision(request_id=request_id, timeout_s=30.0)
+            )
+
+        if telegram_task is None:
+            return await local_task
+
+        done, pending = await asyncio.wait(
+            [local_task, telegram_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+
+        for task in done:
+            res = task.result()
+            if res is not None:
+                return res
+        return False
 
     emergency_controller = EmergencyController()
     authority_learner = AuthorityLearner(db_path=config.appdata_dir / "memory.db")
