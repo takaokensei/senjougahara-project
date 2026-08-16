@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tools/terminal.py
 
 Terminal/subprocess execution tool.
@@ -42,8 +42,32 @@ _READ_ONLY_PREFIXES = (
 )
 
 
+# Operators that chain shell commands. If any of these appear in a command,
+# the risk is always HIGH — regardless of what prefix the command starts with.
+# This check MUST come before the prefix allowlist: a command like
+# "git status; Remove-Item -Recurse -Force C:\Users\..." starts with a safe
+# prefix but the second operation is fully destructive.
+_CHAIN_OPERATORS = (";", "&&", " & ", "|", "`", "$(", "%(", "\n")
+
+
 def classify_command_risk(command: str) -> str:
-    """Heuristic risk classification for terminal commands."""
+    """Heuristic risk classification for terminal commands.
+
+    Order matters:
+    1. Reject any command containing shell chaining / substitution operators
+       (HIGH, unconditionally) — these bypass the prefix allowlist.
+    2. Only then check whether the single command matches a read-only prefix.
+    """
+    # Step 1: any chaining operator → immediately HIGH
+    for op in _CHAIN_OPERATORS:
+        if op in command:
+            logger.warning(
+                "Command contains chaining operator %r — classified as HIGH risk: %s",
+                op, command[:120],
+            )
+            return RISK_HIGH
+
+    # Step 2: single command — safe prefix → MEDIUM, otherwise HIGH
     cmd_lower = command.strip().lower()
     for prefix in _READ_ONLY_PREFIXES:
         if cmd_lower.startswith(prefix):
