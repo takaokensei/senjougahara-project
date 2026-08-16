@@ -13,12 +13,69 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import shutil
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from brain.tools.registry import RISK_LOW, RISK_MEDIUM, tool
 
 logger = logging.getLogger(__name__)
+
+_BROWSER_CANDIDATES: dict[str, list[str]] = {
+    "chrome": [
+        r"{programfiles}\Google\Chrome\Application\chrome.exe",
+        r"{programfilesx86}\Google\Chrome\Application\chrome.exe",
+        r"{localappdata}\Google\Chrome\Application\chrome.exe",
+    ],
+    "brave": [
+        r"{programfiles}\BraveSoftware\Brave-Browser\Application\brave.exe",
+        r"{localappdata}\BraveSoftware\Brave-Browser\Application\brave.exe",
+    ],
+    "edge": [
+        r"{programfiles}\Microsoft\Edge\Application\msedge.exe",
+        r"{programfilesx86}\Microsoft\Edge\Application\msedge.exe",
+    ],
+    "firefox": [
+        r"{programfiles}\Mozilla Firefox\firefox.exe",
+        r"{programfilesx86}\Mozilla Firefox\firefox.exe",
+    ],
+}
+
+
+def _resolve_app_path(app_name: str) -> str:
+    """
+    Resolve a friendly application name to an absolute executable path.
+
+    Order of resolution:
+    1. If app_name is already a valid file or on PATH (via shutil.which), use it.
+    2. If in known browser mappings, check common installation candidates.
+    3. If not found, raise a clear RuntimeError with inspected paths.
+    """
+    which_result = shutil.which(app_name)
+    if which_result:
+        return which_result
+    if os.path.isfile(app_name):
+        return app_name
+
+    key = app_name.strip().lower()
+    candidates = _BROWSER_CANDIDATES.get(key, [])
+    env_map = {
+        "programfiles": os.environ.get("ProgramFiles", r"C:\Program Files"),
+        "programfilesx86": os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+        "localappdata": os.environ.get("LocalAppData", ""),
+    }
+    for template in candidates:
+        candidate_path = template.format(**env_map)
+        if os.path.isfile(candidate_path):
+            return candidate_path
+
+    tried = ", ".join(t.format(**env_map) for t in candidates) or "PATH"
+    raise RuntimeError(
+        f"Não foi possível localizar o executável de '{app_name}'. "
+        f"Locais verificados: {tried}"
+    )
 
 
 @tool(
@@ -48,21 +105,22 @@ async def launch_app(app_name: str, args: list[str] | None = None) -> str:
     more reliable than subprocess for GUI apps (handles UAC prompts differently).
     """
     try:
-        # Use pywinauto for GUI app launching when available
+        resolved_path = _resolve_app_path(app_name)
+
         import pywinauto
 
-        cmd = app_name
+        cmd = f'"{resolved_path}"' if " " in resolved_path else resolved_path
         if args:
-            cmd = f'{app_name} {" ".join(args)}'
+            cmd = f'{cmd} {" ".join(args)}'
 
         app = pywinauto.Application().start(cmd, wait_for_idle=False)
         pid = app.process
-        logger.info("Launched app: %s (pid=%s)", app_name, pid)
+        logger.info("Launched app: %s -> %s (pid=%s)", app_name, resolved_path, pid)
         return f"Launched '{app_name}' successfully (PID: {pid})."
 
     except ImportError:
-        # Fallback to subprocess if pywinauto is not available
-        cmd_list = [app_name] + (args or [])
+        resolved_path = _resolve_app_path(app_name)
+        cmd_list = [resolved_path] + (args or [])
         proc = await asyncio.create_subprocess_exec(*cmd_list)
         return f"Launched '{app_name}' (PID: {proc.pid})."
     except Exception as exc:
