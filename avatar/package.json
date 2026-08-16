@@ -11,7 +11,7 @@
     "build": "tsc && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.preload.json",
     "build:mcp": "tsc",
     "build:electron": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.preload.json && npm run copy:assets && npm run rename:cjs",
-    "copy:assets": "powershell -Command \"Copy-Item src/renderer/VRM.html dist/renderer/ -Force; Copy-Item assets dist/renderer/ -Recurse -Force; Copy-Item config.json dist/renderer/ -Force -ErrorAction SilentlyContinue\"",
+    "copy:assets": "powershell -Command \"New-Item -ItemType Directory -Force dist/renderer | Out-Null; Copy-Item src/renderer/VRM.html dist/renderer/ -Force; Copy-Item assets dist/renderer/ -Recurse -Force -ErrorAction SilentlyContinue; Copy-Item config.example.json dist/renderer/config.json -Force -ErrorAction SilentlyContinue\"",
     "rename:cjs": "powershell -Command \"Remove-Item dist/main/index.cjs -ErrorAction SilentlyContinue; Rename-Item dist/main/index.js -NewName index.cjs\" && node -e \"require('fs').writeFileSync('dist/main/package.json', JSON.stringify({type:'commonjs'}))\"",
     "watch:main": "tsc -p tsconfig.main.json --watch",
     "watch:renderer": "tsc -p tsconfig.renderer.json --watch",

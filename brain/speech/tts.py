@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/speech/tts.py
 
 TTS (Text-to-Speech) adapter.
@@ -134,28 +134,52 @@ class TTSAdapter:
             logger.debug("TTS cache hit: %s", cache_key)
             return wav_path
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Step 1: audio_query
-            query_resp = await client.post(
-                f"{self._base_url}/audio_query",
-                params={"text": text, "speaker": self._speaker_id},
-            )
-            query_resp.raise_for_status()
-            audio_query: dict[str, Any] = query_resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Step 1: audio_query
+                query_resp = await client.post(
+                    f"{self._base_url}/audio_query",
+                    params={"text": text, "speaker": self._speaker_id},
+                )
+                query_resp.raise_for_status()
+                audio_query: dict[str, Any] = query_resp.json()
 
-            # Apply speed/pitch overrides
-            audio_query["speedScale"] = speed
-            audio_query["pitchScale"] = pitch
+                # Apply speed/pitch overrides
+                audio_query["speedScale"] = speed
+                audio_query["pitchScale"] = pitch
 
-            # Step 2: synthesis
-            synth_resp = await client.post(
-                f"{self._base_url}/synthesis",
-                params={"speaker": self._speaker_id},
-                json=audio_query,
-            )
-            synth_resp.raise_for_status()
+                # Step 2: synthesis
+                synth_resp = await client.post(
+                    f"{self._base_url}/synthesis",
+                    params={"speaker": self._speaker_id},
+                    json=audio_query,
+                )
+                synth_resp.raise_for_status()
 
-            wav_path.write_bytes(synth_resp.content)
+                wav_path.write_bytes(synth_resp.content)
+                logger.info("TTS synthesized: %d chars -> %s", len(text), wav_path.name)
+                return wav_path
 
-        logger.info("TTS synthesized: %d chars -> %s", len(text), wav_path.name)
-        return wav_path
+        except Exception as exc:
+            logger.warning("TTS engine unavailable (%s). Generating fallback audio file.", exc)
+            import wave
+            import struct
+            import math
+
+            # Generate ~1.5 seconds of soft tone so the avatar has a valid audio file to play
+            sample_rate = 16000
+            duration = max(1.0, min(len(text) * 0.08, 5.0))
+            num_samples = int(sample_rate * duration)
+
+            with wave.open(str(wav_path), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                data = bytearray()
+                for i in range(num_samples):
+                    # Gentle 440Hz decaying tone
+                    val = int(500 * math.sin(2 * math.pi * 440 * i / sample_rate) * math.exp(-i / (sample_rate * 0.5)))
+                    data.extend(struct.pack("<h", val))
+                wf.writeframes(data)
+
+            return wav_path

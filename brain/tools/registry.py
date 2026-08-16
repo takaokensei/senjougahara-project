@@ -103,7 +103,7 @@ def tool(
 
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            if asyncio.iscoroutinefunction(fn):
+            if inspect.iscoroutinefunction(fn):
                 return await fn(*args, **kwargs)
             return fn(*args, **kwargs)
 
@@ -141,7 +141,7 @@ async def dispatch(tool_name: str, arguments: dict[str, Any]) -> Any:
     logger.info("Dispatching tool: %s args=%r", tool_name, arguments)
 
     try:
-        if asyncio.iscoroutinefunction(registered.fn):
+        if inspect.iscoroutinefunction(registered.fn):
             return await registered.fn(**arguments)
         return registered.fn(**arguments)
     except Exception as exc:
