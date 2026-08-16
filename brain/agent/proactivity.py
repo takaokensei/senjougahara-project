@@ -180,6 +180,14 @@ class ProactivityObserver:
                 logger.debug("Failed purging expired facts in proactivity loop: %s", exc)
             self._last_purge_time = now
 
+        # 0b. Purge stale _comment_history entries every tick.
+        # Entries older than repeat_window_minutes are already ignored by is_repeated_comment,
+        # so keeping them only wastes memory in long-running sessions.
+        repeat_window_sec = self._config.repeat_window_minutes * 60.0
+        stale_keys = [k for k, ts in self._comment_history.items() if (now - ts) >= repeat_window_sec]
+        for k in stale_keys:
+            del self._comment_history[k]
+
         # 1. Inspect foreground window
         win_info = get_foreground_window_info()
         if win_info is None or not win_info.title.strip():
@@ -207,10 +215,10 @@ class ProactivityObserver:
         if is_process_blocked(win_info.process_name, win_info.title, self._config.blocked_processes, is_fullscreen):
             return
 
-        # 5. Check repeat window
-        repeat_window_sec = self._config.repeat_window_minutes * 60.0
+        # 5. Check repeat window (repeat_window_sec computed at top of tick)
         if is_repeated_comment(window_key, self._comment_history, now, repeat_window_sec):
             return
+
 
         # 6. Retrieve known facts summary
         known_facts = ""

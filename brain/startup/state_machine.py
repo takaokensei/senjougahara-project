@@ -104,29 +104,44 @@ class StartupStateMachine:
                 resp = await client.get(f"{base_url}/api/version")
                 resp.raise_for_status()
 
-                # Check if the configured model is installed
-                try:
-                    tags_resp = await client.get(f"{base_url}/api/tags")
-                    if tags_resp.status_code == 200:
-                        data = tags_resp.json()
-                        installed = [m.get("name", "") for m in data.get("models", [])]
-                        # Match exact name or name without tag (e.g. 'qwen2.5:7b' or 'qwen2.5')
-                        model_base = model_name.split(":")[0]
-                        matched = any(
-                            m == model_name or m.startswith(f"{model_name}:") or m.split(":")[0] == model_base
-                            for m in installed
-                        )
-                        if not matched:
-                            avail_str = ", ".join(installed) if installed else "(none)"
-                            raise ValueError(
-                                f"Ollama model '{model_name}' not found locally. "
-                                f"Available models: {avail_str}. "
-                                f"Run 'ollama pull {model_name}' or set model in config/config.yaml."
+                # Check if the configured model is installed.
+                # One retry (1s delay) is applied before giving up — Ollama may still
+                # be initialising at the moment the brain starts.
+                _verified = False
+                for _attempt in range(2):
+                    try:
+                        tags_resp = await client.get(f"{base_url}/api/tags")
+                        if tags_resp.status_code == 200:
+                            data = tags_resp.json()
+                            installed = [m.get("name", "") for m in data.get("models", [])]
+                            model_base = model_name.split(":")[0]
+                            matched = any(
+                                m == model_name or m.startswith(f"{model_name}:") or m.split(":")[0] == model_base
+                                for m in installed
                             )
-                except ValueError:
-                    raise
-                except Exception as exc:
-                    logger.debug("Could not verify Ollama models list: %s", exc)
+                            if not matched:
+                                avail_str = ", ".join(installed) if installed else "(none)"
+                                raise ValueError(
+                                    f"Ollama model '{model_name}' not found locally. "
+                                    f"Available models: {avail_str}. "
+                                    f"Run 'ollama pull {model_name}' or set model in config/config.yaml."
+                                )
+                            _verified = True
+                            break
+                    except ValueError:
+                        raise
+                    except Exception as exc:
+                        if _attempt == 0:
+                            logger.debug("Ollama /api/tags attempt 1 failed (%s), retrying in 1s...", exc)
+                            await asyncio.sleep(1.0)
+                        else:
+                            logger.warning(
+                                "Could not verify whether Ollama model '%s' is installed "
+                                "after 2 attempts (%s). Startup continues, but if the model "
+                                "does not exist the failure will only surface during use.",
+                                model_name, exc,
+                            )
+
 
             logger.info("LLM provider: Ollama at %s (model: %s)", base_url, model_name)
 

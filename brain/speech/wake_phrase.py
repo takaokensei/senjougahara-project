@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/speech/wake_phrase.py
 
 Wake phrase detection and acoustic echo suppression utilities.
@@ -78,4 +78,9 @@ def estimate_audio_duration_seconds(
     word_count = len(other_text.split()) if other_text else 0
 
     duration = (cjk_count / 5.0) + (word_count / 3.0)
+    # Apply a conservative 1.4x safety margin ONLY on the heuristic path (no WAV available).
+    # It is better to suppress wake-word detection a few extra seconds than to risk
+    # re-triggering on the system's own TTS output due to underestimation.
+    duration = duration * 1.4
     return max(1.0, min(60.0, duration))
+

@@ -190,3 +190,56 @@ class TestProactivityObserverEndToEnd:
             mock_bridge.speak.reset_mock()
             await observer.tick()
             mock_bridge.speak.assert_not_called()
+
+
+class TestCommentHistoryPurge:
+    """_comment_history stale entries must be removed each tick, but recent ones kept."""
+
+    @pytest.mark.asyncio
+    async def test_stale_entries_removed_fresh_entries_kept(self):
+        config = ProactivityConfig(
+            enabled=True,
+            poll_interval_seconds=1.0,
+            min_cooldown_minutes=10.0,
+            min_window_stable_seconds=20.0,
+            repeat_window_minutes=60.0,  # 3600 seconds
+            blocked_processes=[],
+        )
+        now = 10_000.0
+        mock_bridge = MagicMock(spec=BridgeClient)
+        mock_bridge.speak = AsyncMock()
+        mock_agent = MagicMock(spec=AgentLoop)
+        mock_agent.process = AsyncMock(return_value=None)
+
+        observer = ProactivityObserver(
+            config=config,
+            agent=mock_agent,
+            bridge=mock_bridge,
+            provider=MockSimpleLLMProvider("NO"),
+            fact_memory=None,
+            time_provider=lambda: now,
+        )
+
+        repeat_window_sec = config.repeat_window_minutes * 60.0  # 3600s
+
+        # Populate history: 2 stale entries (> 3600s ago) and 1 recent entry (< 3600s ago)
+        observer._comment_history = {
+            "old_proc::old_title_1": now - repeat_window_sec - 1.0,   # stale
+            "old_proc::old_title_2": now - repeat_window_sec - 100.0, # stale
+            "new_proc::recent_title": now - repeat_window_sec + 60.0, # still fresh (3540s ago)
+        }
+
+        fake_win = WindowInfo(
+            title="SomethingNew", process_name="new.exe",
+            x=0, y=0, width=1920, height=1080,
+            is_foreground=True, screen_coverage_pct=0.5,
+        )
+        with patch("brain.agent.proactivity.get_foreground_window_info", return_value=fake_win):
+            await observer.tick()
+
+        # Stale keys must be gone
+        assert "old_proc::old_title_1" not in observer._comment_history
+        assert "old_proc::old_title_2" not in observer._comment_history
+        # Recent key must survive
+        assert "new_proc::recent_title" in observer._comment_history
+

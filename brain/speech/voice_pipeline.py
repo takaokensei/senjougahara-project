@@ -203,19 +203,29 @@ class VoicePipeline:
                     animation=structured.animation,
                 )
             except Exception as tts_exc:
-                logger.warning("TTS synthesis failed: %s", tts_exc)
+                logger.warning(
+                    "TTS synthesis failed: %s. Echo suppression will use a short fixed 2s window "
+                    "(no audio plays, so full heuristic estimate is unnecessary and would over-suppress).",
+                    tts_exc,
+                )
+                # No audio will play — use a short fixed window so the voice pipeline stays
+                # responsive while still preventing an immediate self-trigger on the caption.
+                self._suppress_wakeword_until = time.monotonic() + 2.0
 
             # 7. Command Avatar to speak with lip-sync and subtitle caption
             wav_path = audio_result.get("wav_path") if audio_result else None
-            audio_duration = estimate_audio_duration_seconds(structured.text, wav_path)
+            if audio_result:
+                audio_duration = estimate_audio_duration_seconds(structured.text, wav_path)
+                # Suppress acoustic self-triggering during audio playback window (+ margin)
+                self._suppress_wakeword_until = time.monotonic() + audio_duration + 0.6
+                logger.debug(
+                    "Acoustic echo suppression active for %.2fs (until +%.2fs)",
+                    audio_duration,
+                    audio_duration + 0.6,
+                )
+            else:
+                logger.debug("Acoustic echo suppression active for fixed 2.0s (TTS unavailable)")
 
-            # Suppress acoustic self-triggering during audio playback window (+ margin)
-            self._suppress_wakeword_until = time.monotonic() + audio_duration + 0.6
-            logger.debug(
-                "Acoustic echo suppression active for %.2fs (until +%.2fs)",
-                audio_duration,
-                audio_duration + 0.6,
-            )
 
             caption_text = structured.portuguese_translation
             if not caption_text:

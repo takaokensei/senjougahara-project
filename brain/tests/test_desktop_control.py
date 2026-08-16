@@ -135,21 +135,31 @@ class TestWriteNoteAndTypeText:
     async def test_write_note_orchestration(self):
         from brain.tools.desktop_control import write_note
 
-        sent_chunks: list[str] = []
+        mock_proc = MagicMock()
+        mock_proc.pid = 1234
 
-        with patch("brain.tools.desktop_control.launch_app", new_callable=AsyncMock) as mock_launch, \
-             patch("brain.tools.desktop_control.focus_window", new_callable=AsyncMock) as mock_focus, \
-             patch("pywinauto.keyboard.send_keys", side_effect=lambda chunk, **kw: sent_chunks.append(chunk)):
+        mock_win = MagicMock()
+        mock_win.handle = 5678
 
-            mock_launch.return_value = "Launched notepad with PID: 1111"
-            mock_focus.return_value = "Focused window: 'Notepad'"
+        mock_app = MagicMock()
+        mock_app.top_window.return_value = mock_win
 
-            result = await write_note("Lembrar de estudar DSP amanha", typing_delay_ms=1)
+        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen, \
+             patch("pywinauto.Application") as mock_app_cls, \
+             patch("ctypes.windll.user32.SetForegroundWindow") as mock_set_fg, \
+             patch("ctypes.windll.user32.BringWindowToTop") as mock_bring_top, \
+             patch("brain.tools.desktop_control.type_text", new_callable=AsyncMock) as mock_type:
+
+            mock_app_instance = MagicMock()
+            mock_app_instance.connect.return_value = mock_app
+            mock_app_cls.return_value = mock_app_instance
+            mock_type.return_value = "Typed 30 characters successfully."
+
+            result = await write_note("Lembrar de estudar DSP amanha", typing_delay_ms=80)
 
             assert result == "Nota escrita no Notepad."
-            mock_launch.assert_called_once_with("notepad")
-            mock_focus.assert_called_once_with("Notepad")
-            assert len(sent_chunks) > 1
-            assert "".join(sent_chunks) == "Lembrar de estudar DSP amanha"
+            mock_popen.assert_called_once_with(["notepad.exe"])
+            mock_type.assert_called_once_with("Lembrar de estudar DSP amanha", delay_ms=80)
+
 
 
