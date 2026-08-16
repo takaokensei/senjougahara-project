@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/speech/stt.py
 
 Speech-to-Text (STT) module using faster-whisper (CTranslate2).
@@ -79,6 +79,7 @@ class STTEngine:
             str(audio_path),
             language=self.language,
             beam_size=5,
+            vad_filter=True,
         )
         text_parts = [segment.text.strip() for segment in segments]
         result = " ".join(text_parts).strip()
@@ -93,6 +94,7 @@ class STTEngine:
             stream,
             language=self.language,
             beam_size=5,
+            vad_filter=True,
         )
         text_parts = [segment.text.strip() for segment in segments]
         result = " ".join(text_parts).strip()

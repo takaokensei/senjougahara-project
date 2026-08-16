@@ -156,8 +156,8 @@ class VoicePipeline:
             # 1. Notify avatar: LISTENING
             await self.bridge.set_state("LISTENING", reason=f"Activated by {source}")
 
-            # 2. Record audio
-            audio_bytes = await self.recorder.record_async(duration=4.5)
+            # 2. Record audio with VAD silence detection
+            audio_bytes = await self.recorder.record_async()
             if not audio_bytes:
                 logger.warning("No audio recorded from microphone.")
                 await self.bridge.set_state("CONFUSED", reason="Microphone error / no audio")
