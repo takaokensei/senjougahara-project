@@ -48,6 +48,10 @@ export class LocomotionController {
 
   setVRM(vrm: VRM | null): void {
     this.vrm = vrm;
+    if (vrm) {
+      // Always face front — never inherit a rotated state from wander
+      vrm.scene.rotation.y = 0;
+    }
     this.applyPosition();
   }
 

@@ -18,7 +18,9 @@ declare global {
       onBrainConnected?: (callback: () => void) => void;
       sendActivate?: (source: 'hotkey' | 'wake_word' | 'click') => void;
       sendConfirmationResponse?: (response: { request_id: string; confirmed: boolean }) => void;
+      moveWindowBy?: (dx: number, dy: number) => void;
     };
+
   }
 }
 
@@ -160,11 +162,49 @@ function setupWindowAwarenessPolling() {
 }
 
 function setupCanvasClick(canvas: HTMLCanvasElement) {
+  // --- Double-click: activate voice ---
   canvas.addEventListener('dblclick', () => {
     console.log('[Senjougahara] Canvas double clicked -> send activate');
     window.vrmAPI?.sendActivate?.('click');
   });
+
+  // --- Drag: move the Electron window ---
+  let dragActive = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  canvas.addEventListener('mousedown', (e: MouseEvent) => {
+    if (e.button !== 0) return; // left button only
+    dragActive = true;
+    lastX = e.screenX;
+    lastY = e.screenY;
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e: MouseEvent) => {
+    if (!dragActive) return;
+    const dx = e.screenX - lastX;
+    const dy = e.screenY - lastY;
+    lastX = e.screenX;
+    lastY = e.screenY;
+    if (Math.abs(dx) > 0 || Math.abs(dy) > 0) {
+      (window.vrmAPI as any)?.moveWindowBy?.(dx, dy);
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragActive = false;
+  });
+
+  // --- Scroll: zoom in / out ---
+  canvas.addEventListener('wheel', (e: WheelEvent) => {
+    e.preventDefault();
+    // Each notch scrolls ~120 units; we step 0.1 per notch
+    const delta = (e.deltaY / 120) * 0.18;
+    vrmRenderer?.adjustZoom(delta);
+  }, { passive: false });
 }
+
 
 function restoreWindowBounds() {
   const storageKey = `${config.window.storagePrefix}-window-bounds`;

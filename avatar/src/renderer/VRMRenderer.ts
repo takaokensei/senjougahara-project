@@ -200,6 +200,15 @@ export class VRMRenderer {
 
   // Camera is fixed — no animateCameraTo, no presets, no reset
 
+  /** Move camera closer (delta < 0) or further (delta > 0) along its Z axis. */
+  adjustZoom(delta: number): void {
+    const newZ = this.camera.position.z + delta;
+    // Clamp: don't go closer than -0.5 or further than -4.0
+    this.camera.position.z = Math.max(-4.0, Math.min(-0.5, newZ));
+    this.camera.lookAt(FIXED_CAMERA.lookX, FIXED_CAMERA.lookY, FIXED_CAMERA.lookZ);
+  }
+
+
   getVRM(): VRM | null {
     return this.vrm;
   }

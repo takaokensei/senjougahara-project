@@ -51,4 +51,13 @@ export function registerIpcHandlers(): void {
   ipcMain.on('locomotion:update-bounds', (_event: any, bounds: any) => {
     updateCharacterBounds(bounds);
   });
+
+  ipcMain.on('window:move-by', (_event: any, { dx, dy }: { dx: number; dy: number }) => {
+    const win = getMainWindow();
+    if (win) {
+      const [x, y] = win.getPosition();
+      win.setPosition(x + Math.round(dx), y + Math.round(dy));
+    }
+  });
 }
+

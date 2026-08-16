@@ -46,4 +46,8 @@ contextBridge.exposeInMainWorld('vrmAPI', {
   sendConfirmationResponse: (response: { request_id: string; confirmed: boolean }) => {
     ipcRenderer.send('bridge:confirmation_response', response);
   },
+  moveWindowBy: (dx: number, dy: number) => {
+    ipcRenderer.send('window:move-by', { dx, dy });
+  },
 });
+
