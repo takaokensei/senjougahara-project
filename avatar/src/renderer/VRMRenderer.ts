@@ -7,12 +7,12 @@ import { LocomotionController } from './controllers/LocomotionController.js';
 
 // Fixed camera configuration for the portrait waist-up view
 const FIXED_CAMERA = {
-  fov: 42,
+  fov: 58,
   posX: 0,
-  posY: 1.28,
-  posZ: -1.4,
+  posY: 1.30,
+  posZ: -2.2,
   lookX: 0,
-  lookY: 1.10,
+  lookY: 1.05,
   lookZ: 0,
 } as const;
 
@@ -53,7 +53,7 @@ export class VRMRenderer {
     // but wander is never started, so she stays stationary
     this.locomotion = new LocomotionController(
       { fov: FIXED_CAMERA.fov, distance: Math.abs(FIXED_CAMERA.posZ), targetY: FIXED_CAMERA.lookY },
-      { x: Math.round(window.innerWidth * 0.15), y: Math.round(window.innerHeight * 0.80) }
+      { x: Math.round(window.innerWidth * 0.06), y: Math.round(window.innerHeight * 0.82) }
     );
 
     this.renderer = new THREE.WebGLRenderer({ canvas, alpha: false, antialias: true });
