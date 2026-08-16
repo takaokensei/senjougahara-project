@@ -17,9 +17,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import logging.handlers
+import os
 import signal
 import sys
 from pathlib import Path
+
+# Silence Hugging Face Windows symlink warnings
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
 
 def _configure_logging(log_dir: Path, level: str) -> None:
@@ -143,6 +147,8 @@ async def main() -> None:
             compute_type=config.stt.compute_type,
             language=config.stt.language,
         )
+        # Preload weights into RAM in background so first voice interaction has zero latency
+        asyncio.create_task(asyncio.to_thread(stt_engine.load_model))
 
     hotkey_listener = None
     if config.hotkey.enabled:
