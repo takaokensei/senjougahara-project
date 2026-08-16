@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tools/browser.py
 
 Playwright browser automation tool.
@@ -41,7 +41,7 @@ async def _get_page():
 
 @tool(
     name="browser_navigate",
-    description="Navigate the browser to a given URL and return the page title and preview text.",
+    description="Navigate the browser to a given URL. Opens the website in the system browser and extracts preview text.",
     risk=RISK_LOW,
     parameters={
         "type": "object",
@@ -52,17 +52,23 @@ async def _get_page():
     },
 )
 async def browser_navigate(url: str) -> dict[str, str]:
-    page = await _get_page()
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
 
-    logger.info("Browser navigating to %s", url)
-    await page.goto(url, timeout=30000, wait_until="domcontentloaded")
-    title = await page.title()
-    content = await page.inner_text("body")
-    preview = content[:2000] if content else ""
+    import webbrowser
+    webbrowser.open(url)
 
-    return {"title": title, "url": page.url, "preview": preview}
+    try:
+        page = await _get_page()
+        logger.info("Browser navigating to %s", url)
+        await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        title = await page.title()
+        content = await page.inner_text("body")
+        preview = content[:2000] if content else ""
+        return {"title": title, "url": page.url, "preview": preview}
+    except Exception as exc:
+        logger.warning("Playwright navigation error: %s. Opened in default browser.", exc)
+        return {"title": "Opened in default browser", "url": url, "preview": f"Opened {url} in system web browser."}
 
 
 @tool(

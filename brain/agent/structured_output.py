@@ -142,16 +142,18 @@ def parse_structured_response(raw: str) -> StructuredResponse:
         except Exception:
             pass
 
-    # Attempt 3: first { ... } block
-    m2 = _FIRST_OBJECT_RE.search(raw)
-    if m2:
+    # Attempt 3: search all { ... } blocks for a valid StructuredResponse (has "text" key)
+    for match in re.finditer(r"\{[\s\S]*?\}", raw):
         try:
-            return StructuredResponse.model_validate(json.loads(m2.group(0)))
+            obj = json.loads(match.group(0))
+            if isinstance(obj, dict) and "text" in obj:
+                return StructuredResponse.model_validate(obj)
         except Exception:
             pass
 
-    # Fallback: plain text response
-    return StructuredResponse(text=raw if raw else "...", emotion=Emotion.NEUTRAL, animation="idle")
+    # Fallback: plain text response (clean up any stray JSON tool call artifacts)
+    clean_text = re.sub(r"\{[\s\S]*?\}", "", raw).strip()
+    return StructuredResponse(text=clean_text if clean_text else (raw if raw else "..."), emotion=Emotion.NEUTRAL, animation="idle")
 
 
 def structured_response_to_dict(response: StructuredResponse) -> dict[str, Any]:

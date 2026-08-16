@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/providers/ollama.py
 
 Ollama local LLM provider adapter.
@@ -72,6 +72,23 @@ class OllamaProvider(BaseLLMProvider):
                     tool_name=fn.get("name", ""),
                     arguments=fn.get("arguments", {}),
                 ))
+        elif message.get("content"):
+            import re
+            content = message["content"]
+            for m in re.finditer(r"\{[\s\S]*?\}", content):
+                try:
+                    obj = json.loads(m.group(0))
+                    if isinstance(obj, dict):
+                        name = obj.get("name") or obj.get("function")
+                        args = obj.get("arguments") or obj.get("parameters") or {}
+                        if name and isinstance(name, str) and isinstance(args, dict) and "text" not in obj:
+                            tool_calls.append(ToolCall(
+                                call_id=f"call_{len(tool_calls)}",
+                                tool_name=name,
+                                arguments=args,
+                            ))
+                except Exception:
+                    pass
 
         return LLMResponse(text=message.get("content"), tool_calls=tool_calls, raw=response)
 
