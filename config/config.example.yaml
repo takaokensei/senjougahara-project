@@ -22,7 +22,7 @@ stt:
   model_size: small              # tiny | base | small | medium | large-v3
   device: auto                   # auto | cuda | cpu
   compute_type: auto             # auto | int8 | float16 | int8_float16
-  language: null                 # null = auto-detect; or e.g. "pt", "en"
+  language: pt                 # "pt" (default) | "en" | "ja" | null (auto-detect)
 
 # ─── Wake Word ────────────────────────────────────────────────────────────────
 wake_word:

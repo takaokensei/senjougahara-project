@@ -48,7 +48,7 @@ class STTConfig(BaseModel):
     model_size: str = "small"
     device: str = "auto"  # auto | cuda | cpu
     compute_type: str = "auto"  # auto | int8 | float16
-    language: str | None = None
+    language: str | None = "pt"
 
 
 class WakeWordConfig(BaseModel):

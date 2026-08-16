@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tests/test_stt.py
 
 Unit tests for STTEngine language forcing and UTF-8 encoding preservation.
@@ -68,3 +68,28 @@ class TestSTTEngine:
         _, kwargs = mock_model.transcribe.call_args
         assert kwargs.get("language") == "pt"
         assert kwargs.get("vad_filter") is True
+
+    def test_stt_low_confidence_fallback_to_pt(self):
+        """When language='auto', low confidence detection (< 0.6) falls back to 'pt'."""
+        engine = STTEngine(language="auto", min_language_confidence=0.6)
+
+        mock_segments_fr = [MockSegment("Oi bebe")]
+        mock_info_fr = MockTranscriptionInfo(language="fr", language_probability=0.34)
+
+        mock_segments_pt = [MockSegment("Oi bebê")]
+        mock_info_pt = MockTranscriptionInfo(language="pt", language_probability=0.95)
+
+        mock_model = MagicMock()
+        # First call returns low-prob FR, second call returns forced PT
+        mock_model.transcribe.side_effect = [
+            (mock_segments_fr, mock_info_fr),
+            (mock_segments_pt, mock_info_pt),
+        ]
+        engine._model = mock_model
+
+        result = engine.transcribe_bytes(b"DUMMY_AUDIO_BYTES")
+        assert result == "Oi bebê"
+        assert mock_model.transcribe.call_count == 2
+        # Check second call forced pt
+        second_call_kwargs = mock_model.transcribe.call_args_list[1][1]
+        assert second_call_kwargs.get("language") == "pt"
