@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/bridge/client.py
 
 WebSocket/REST client that connects to the avatar bridge server
@@ -60,18 +60,18 @@ class BridgeClient:
     # Connection lifecycle
     # ------------------------------------------------------------------
 
-    async def connect(self) -> None:
+    async def connect(self, wait_timeout: float = 0.5) -> None:
         """Start the background receive loop (connects + reconnects)."""
         if websockets is None:
             logger.warning("websockets library not installed — bridge client disabled.")
             return
         self._running = True
         asyncio.create_task(self._run_forever())
-        # Wait up to 10s for the first connection
+        # Quick non-blocking attempt to see if avatar is already up
         try:
-            await asyncio.wait_for(self._connected.wait(), timeout=10.0)
-        except asyncio.TimeoutError:
-            logger.warning("Bridge: avatar not reachable within 10s. Will keep retrying.")
+            await asyncio.wait_for(self._connected.wait(), timeout=wait_timeout)
+        except (asyncio.TimeoutError, Exception):
+            logger.debug("Bridge: avatar not immediately reachable. Will connect once avatar starts.")
 
     async def disconnect(self) -> None:
         """Gracefully close the WebSocket."""

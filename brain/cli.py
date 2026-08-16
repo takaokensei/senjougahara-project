@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/cli.py
 
 Interactive Terminal CLI for Senjougahara.
@@ -80,7 +80,7 @@ async def run_cli() -> None:
 
     while True:
         try:
-            user_input = input("You > ").strip()
+            user_input = (await asyncio.to_thread(input, "You > ")).strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting.")
             break
