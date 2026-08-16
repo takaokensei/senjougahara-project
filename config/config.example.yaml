@@ -11,7 +11,9 @@ personality:
 # ─── LLM Provider ─────────────────────────────────────────────────────────────
 llm:
   provider: ollama               # ollama | anthropic | openai | gemini
-  model: qwen2.5:7b              # model identifier (e.g. qwen2.5:7b, llama3.1:8b)
+  # Recommended local model: qwen3:8b (runs in ~5.5-6GB VRAM, strong multilingual/Japanese,
+  # native tool calling in chat template, excellent role-playing and multi-turn dialogue alignment)
+  model: qwen3:8b                # model identifier (e.g. qwen3:8b, llama3.1:8b)
   # For Ollama only:
   # ollama_base_url is read from OLLAMA_BASE_URL in .env (default: http://localhost:11434)
 
@@ -81,4 +83,17 @@ telegram:
   enabled: false                 # Set true to receive HIGH-tier approval prompts in Telegram
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   chat_id: "${TELEGRAM_CHAT_ID}"
+
+# ─── Proactivity (Spontaneous Observations) ──────────────────────────────────
+proactivity:
+  enabled: false                 # Opt-in: enable low-frequency, context-aware comments
+  poll_interval_seconds: 30.0    # Window awareness observation interval
+  min_cooldown_minutes: 12.0     # Minimum quiet time between spontaneous comments
+  min_window_stable_seconds: 20.0 # Time the foreground window must remain focused
+  repeat_window_minutes: 60.0    # Avoid commenting on the same window within this window
+  blocked_processes:             # Apps where comments are suppressed (calls, meetings, etc.)
+    - Teams.exe
+    - zoom.exe
+    - Discord.exe
+
 
