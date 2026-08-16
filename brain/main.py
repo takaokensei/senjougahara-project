@@ -92,11 +92,11 @@ async def main() -> None:
 
     # Agent loop
     from brain.agent.loop import AgentLoop
-    from brain.agent.providers.anthropic import AnthropicProvider
+    from brain.agent.providers.factory import create_llm_provider
     from brain.tools.registry import import_all_tools
     import_all_tools()
 
-    provider = AnthropicProvider(model=config.llm.model)
+    provider = create_llm_provider(config.llm)
     system_prompt = (
         profile.build_system_prompt() if profile
         else 'Respond in JSON: {"text": "...", "emotion": "neutral", "animation": "idle", "priority": "normal"}'

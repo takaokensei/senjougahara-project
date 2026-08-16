@@ -18,4 +18,17 @@ contextBridge.exposeInMainWorld('vrmAPI', {
   setWindowBounds: (bounds: { x: number; y: number; width: number; height: number }) => {
     ipcRenderer.send('set-window-bounds', bounds);
   },
+  // Senjougahara Bridge APIs
+  onBridgeCommand: (callback: (command: any) => void) => {
+    ipcRenderer.on('bridge:command', (_event: any, command: any) => callback(command));
+  },
+  onBrainConnected: (callback: () => void) => {
+    ipcRenderer.on('bridge:brain_connected', () => callback());
+  },
+  sendActivate: (source: 'hotkey' | 'wake_word' | 'click') => {
+    ipcRenderer.send('bridge:activate', source);
+  },
+  sendConfirmationResponse: (response: { request_id: string; confirmed: boolean }) => {
+    ipcRenderer.send('bridge:confirmation_response', response);
+  },
 });
