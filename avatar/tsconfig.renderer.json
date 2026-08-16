@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": [],
+    "rootDir": "./src/renderer",
+    "outDir": "./dist/renderer"
+  },
+  "include": ["src/renderer/**/*"],
+  "exclude": ["node_modules", "dist", "src/renderer/preload.ts", "**/*.test.ts"]
+}

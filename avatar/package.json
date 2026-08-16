@@ -1,0 +1,115 @@
+{
+  "name": "desktop-mascot-mcp",
+  "version": "0.3.4",
+  "description": "MCP Server for desktop mascot with VRM 3D character, TTS voice synthesis, and emotion expressions",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "desktop-mascot-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.preload.json",
+    "build:mcp": "tsc",
+    "build:electron": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc -p tsconfig.preload.json && npm run copy:assets && npm run rename:cjs",
+    "copy:assets": "powershell -Command \"Copy-Item src/renderer/VRM.html dist/renderer/ -Force; Copy-Item assets dist/renderer/ -Recurse -Force; Copy-Item config.json dist/renderer/ -Force -ErrorAction SilentlyContinue\"",
+    "rename:cjs": "powershell -Command \"Remove-Item dist/main/index.cjs -ErrorAction SilentlyContinue; Rename-Item dist/main/index.js -NewName index.cjs\" && node -e \"require('fs').writeFileSync('dist/main/package.json', JSON.stringify({type:'commonjs'}))\"",
+    "watch:main": "tsc -p tsconfig.main.json --watch",
+    "watch:renderer": "tsc -p tsconfig.renderer.json --watch",
+    "watch:assets": "nodemon --watch src/renderer/VRM.html --exec \"npm run copy:assets\"",
+    "watch:electron": "nodemon --watch dist --exec \"electron dist/main/index.cjs\"",
+    "dev:watch": "npm run build:electron && concurrently \"npm:watch:main\" \"npm:watch:renderer\" \"npm:watch:assets\" \"npm:watch:electron\"",
+    "start": "node dist/index.js",
+    "start:electron": "electron dist/main/index.cjs",
+    "dev": "tsc && node dist/index.js",
+    "dev:electron": "npm run build:electron && electron dist/main/index.cjs",
+    "dist:win": "npm run build:mcp && npm run build:electron && electron-builder --win && npm run zip:win",
+    "zip:win": "node scripts/zip-win.mjs",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json"
+  },
+  "keywords": [
+    "mcp",
+    "vrm",
+    "voice-synthesis",
+    "tts",
+    "desktop-mascot",
+    "3d-character",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "com.rennosuke.desktop-mascot",
+    "productName": "Desktop Mascot",
+    "asar": false,
+    "extraMetadata": {
+      "main": "dist/main/index.cjs"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Desktop Mascot"
+    },
+    "files": [
+      "dist/main/**",
+      "dist/renderer/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "mcp",
+        "filter": [
+          "index.js",
+          "services/**",
+          "tools/**",
+          "types/**",
+          "utils/**"
+        ]
+      }
+    ]
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@pixiv/three-vrm": "^3.4.5",
+    "@pixiv/three-vrm-animation": "^3.4.5",
+    "three": "^0.182.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/three": "^0.182.0",
+    "@types/ws": "^8.5.14",
+    "@vitest/coverage-v8": "^4.1.10",
+    "concurrently": "^9.2.1",
+    "electron": "^40.4.1",
+    "electron-builder": "^26.8.1",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "config": {
+    "idleVariation": {
+      "enabled": true,
+      "delayMin": 30000,
+      "delayMax": 60000,
+      "animations": ["think", "happy", "shy", "cheer"]
+    }
+  },
+  "animations": [
+    {
+      "name": "idle",
+      "file": "idle.vrma",
+      "loop": true,
+      "fadeTime": 0.3,
+      "returnToIdle": false,
+      "category": "gesture",
+      "description": "デフォルト待機アニメーション"
+    },
+    {
+      "name": "wave",
+      "file": "wave.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "手を振る"
+    },
+    {
+      "name": "nod",
+      "file": "nod.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "うなずき（肯定）"
+    },
+    {
+      "name": "shake",
+      "file": "shake.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "首を振る（否定）"
+    },
+    {
+      "name": "think",
+      "file": "think.vrma",
+      "loop": false,
+      "fadeTime": 0.5,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "考える"
+    },
+    {
+      "name": "clap",
+      "file": "clap.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "gesture",
+      "description": "拍手"
+    },
+    {
+      "name": "angry",
+      "file": "angry.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "怒り"
+    },
+    {
+      "name": "happy",
+      "file": "happy.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "幸せ"
+    },
+    {
+      "name": "surprised",
+      "file": "surprised.vrma",
+      "loop": false,
+      "fadeTime": 0.2,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "驚き"
+    },
+    {
+      "name": "shy",
+      "file": "shy.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "恥ずかしい"
+    },
+    {
+      "name": "cheer",
+      "file": "cheer.vrma",
+      "loop": false,
+      "fadeTime": 0.3,
+      "returnToIdle": true,
+      "category": "emotion",
+      "description": "応援"
+    }
+  ]
+}

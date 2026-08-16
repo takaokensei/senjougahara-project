@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tools/registry.py
 
 Tool registration and dispatch system.
@@ -154,8 +154,15 @@ def import_all_tools() -> None:
     Eagerly import all tool modules so their @tool() decorators run
     and populate the registry before the agent loop starts.
     """
-    # Import order doesn't matter — they all go into the same global dict
     import brain.tools.desktop_control  # noqa: F401
     import brain.tools.filesystem       # noqa: F401
     import brain.tools.terminal         # noqa: F401
+    try:
+        import brain.tools.browser      # noqa: F401
+    except ImportError as e:
+        logger.debug("Browser tools not loaded: %s", e)
+    try:
+        import brain.tools.screenshot   # noqa: F401
+    except ImportError as e:
+        logger.debug("Screenshot tools not loaded: %s", e)
     logger.debug("All tools imported. Registry size: %d", len(_REGISTRY))
