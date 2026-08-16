@@ -1,4 +1,4 @@
-﻿# Senjougahara
+# Senjougahara
 
 **An AI-powered anime desktop companion for Windows 10/11.**
 
@@ -23,68 +23,66 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design rationale.
 
 ---
 
-## Quick Start (Phase 1 — Text Mode)
+## Quick Start (Voice & Hands-Free Interaction)
 
 ### Prerequisites
 
 - Windows 10/11
 - Python 3.11+
 - Node.js 20+
-- [AivisSpeech](https://aivis-project.com/) (or VOICEVOX) installed and running on port 10101
-- An Anthropic API key (or other LLM provider)
+- [AivisSpeech](https://aivis-project.com/) (or VOICEVOX) running on port `10101`
+- Ollama running locally (or API key for Anthropic/OpenAI/Gemini)
 
-### 1. Clone the avatar fork
-
-```powershell
-# From the project root:
-git clone https://github.com/rennosuke-haresu/desktop-mascot-mcp avatar
-```
-
-### 2. Install avatar dependencies
+### 1. Setup Python Environment & Dependencies
 
 ```powershell
-npm --prefix avatar install
+pip install -r brain\requirements.txt
+playwright install chromium
 ```
 
-### 3. Set up brain Python environment
-
-```powershell
-python -m venv brain\.venv
-brain\.venv\Scripts\pip install -r brain\requirements.txt
-brain\.venv\Scripts\playwright install chromium
-```
-
-### 4. Configure
+### 2. Configure
 
 ```powershell
 copy config\.env.example .env
-# Edit .env: add your ANTHROPIC_API_KEY
 copy config\config.example.yaml config\config.yaml
-# Edit config.yaml as needed (defaults work for most setups)
+# Edit config/config.yaml (defaults work out of the box with Ollama & AivisSpeech)
 ```
 
-### 5. Run in dev mode
+### 3. Launch Senjougahara
 
 ```powershell
+# Run the complete system (Brain + Voice Pipeline + Avatar)
 .\scripts\dev.ps1
 ```
 
-Or run individually:
+Or run the Brain backend directly:
 
 ```powershell
-# Terminal 1: Brain
-brain\.venv\Scripts\python -m brain.main
-
-# Terminal 2: Avatar
-npm --prefix avatar run start:electron
+python -m brain.main
 ```
 
-### 6. Test
+### 4. Talk to Senjougahara (Voice Mode — Primary)
 
-```powershell
-# Send a text message to the agent (Phase 1 mode)
-curl -X POST http://127.0.0.1:8767/chat -H "Content-Type: application/json" -d '{"message": "Open Notepad"}'
+1. Press the global hotkey: **`Right Ctrl`** (works anywhere in Windows).
+2. The avatar transitions to **`LISTENING`** state.
+3. Speak your request (e.g. *"Abra o YouTube e procure músicas relaxantes"* or *"Como você está se sentindo hoje?"*).
+4. Senjougahara transcribes your voice (via `faster-whisper`), processes the prompt, speaks back with her Japanese anime voice (via `AivisSpeech`), and triggers lip-sync and expressions on your desktop!
+
+#### Hands-Free Wake Word (Optional)
+To activate hands-free without pressing any keys, enable wake word in `config/config.yaml`:
+```yaml
+wake_word:
+  enabled: true
+  phrase: hey_jarvis  # or custom model path
 ```
+
+---
+
+## Debug & Text Interfaces (Secondary)
+
+- **Interactive CLI**: `python -m brain.cli` for terminal-based testing.
+- **REST Debug Endpoint**: `POST http://127.0.0.1:8766/chat` with `{"message": "Open Notepad"}`.
+- **Health Check**: `GET http://127.0.0.1:8766/health`.
 
 ---
 

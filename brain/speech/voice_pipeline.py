@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/speech/voice_pipeline.py
 
 Unified voice pipeline coordinating:
@@ -53,24 +53,89 @@ class VoicePipeline:
         self.wakeword = wakeword
         self.conversation_history: list[dict[str, Any]] = []
         self._is_processing = False
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._wakeword_task: asyncio.Task | None = None
+        self._stopped = False
 
-    def start(self) -> None:
+    def start(self, loop: asyncio.AbstractEventLoop | None = None) -> None:
         """Start listening for activation triggers."""
+        try:
+            self._loop = loop or asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = asyncio.get_event_loop()
+
+        self._stopped = False
+
         if self.hotkey:
-            self.hotkey.callback = lambda: asyncio.create_task(self.handle_activation("hotkey"))
+            def _on_hotkey():
+                if self._loop and self._loop.is_running():
+                    asyncio.run_coroutine_threadsafe(self.handle_activation("hotkey"), self._loop)
+                else:
+                    asyncio.create_task(self.handle_activation("hotkey"))
+
+            self.hotkey.callback = _on_hotkey
             self.hotkey.start()
 
-        # Listen for bridge activation events (e.g. click from avatar)
-        self.bridge.on("activate", lambda evt: asyncio.create_task(
-            self.handle_activation(evt.get("source", "bridge"))
-        ))
+        # Listen for bridge activation events (e.g. click on avatar)
+        def _on_bridge_activate(evt: dict[str, Any]) -> None:
+            source = evt.get("source", "bridge")
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.handle_activation(source), self._loop)
+            else:
+                asyncio.create_task(self.handle_activation(source))
+
+        self.bridge.on("activate", _on_bridge_activate)
+
+        # Continuous wake-word background task if enabled
+        if self.wakeword:
+            self._wakeword_task = asyncio.create_task(self._listen_wakeword())
+
         logger.info("Voice pipeline started and listening for activation.")
 
     def stop(self) -> None:
         """Stop listening for triggers."""
+        self._stopped = True
         if self.hotkey:
             self.hotkey.stop()
+        if self._wakeword_task and not self._wakeword_task.done():
+            self._wakeword_task.cancel()
         logger.info("Voice pipeline stopped.")
+
+    async def _listen_wakeword(self) -> None:
+        """Continuous background wake-word listening loop."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+            logger.info("Continuous wake-word detection started for: %s", self.wakeword.phrase)
+
+            chunk_size = 1280  # 80ms at 16kHz
+            loop = asyncio.get_running_loop()
+            queue: asyncio.Queue[np.ndarray] = asyncio.Queue()
+
+            def _audio_callback(indata, frames, time_info, status):
+                if not self._is_processing and not self._stopped:
+                    loop.call_soon_threadsafe(queue.put_nowait, indata.copy())
+
+            stream = sd.InputStream(
+                samplerate=16000,
+                channels=1,
+                dtype="int16",
+                blocksize=chunk_size,
+                callback=_audio_callback,
+            )
+            with stream:
+                while not self._stopped:
+                    chunk = await queue.get()
+                    if self._is_processing:
+                        continue
+                    detected, name, score = await asyncio.to_thread(self.wakeword.process_frame, chunk)
+                    if detected and not self._is_processing:
+                        logger.info("Wake word '%s' detected (confidence: %.2f)!", name, score)
+                        await self.handle_activation("wake_word")
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.warning("Wake-word listener unavailable (%s). Continuing with hotkey only.", exc)
 
     async def handle_activation(self, source: str = "hotkey") -> None:
         """Execute a full voice interaction turn."""
@@ -88,7 +153,9 @@ class VoicePipeline:
             # 2. Record audio
             audio_bytes = await self.recorder.record_async(duration=4.5)
             if not audio_bytes:
-                logger.warning("No audio recorded.")
+                logger.warning("No audio recorded from microphone.")
+                await self.bridge.set_state("CONFUSED", reason="Microphone error / no audio")
+                await asyncio.sleep(1.0)
                 await self.bridge.set_state("IDLE")
                 return
 
@@ -96,6 +163,8 @@ class VoicePipeline:
             user_text = await asyncio.to_thread(self.stt.transcribe_bytes, audio_bytes)
             if not user_text.strip():
                 logger.info("STT returned empty transcript (silence). Returning to IDLE.")
+                await self.bridge.set_state("CONFUSED", reason="Silence detected")
+                await asyncio.sleep(1.0)
                 await self.bridge.set_state("IDLE")
                 return
 
@@ -132,6 +201,15 @@ class VoicePipeline:
                 audio_url=audio_result["audio_url"] if audio_result else None,
                 priority=structured.priority.value,
             )
+
+            # 8. Local speaker playback fallback
+            wav_path = audio_result.get("wav_path") if audio_result else None
+            if wav_path and Path(wav_path).exists():
+                try:
+                    import winsound
+                    winsound.PlaySound(str(wav_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
+                except Exception as play_exc:
+                    logger.debug("Voice pipeline audio playback error: %s", play_exc)
 
         except Exception as exc:
             logger.error("Voice pipeline error: %s", exc, exc_info=True)

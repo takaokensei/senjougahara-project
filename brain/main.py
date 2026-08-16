@@ -115,21 +115,60 @@ async def main() -> None:
         audio_cache_dir=audio_cache_dir,
     )
 
-    conversation_history: list[dict] = []
+    # ── Voice Pipeline (Primary Hands-Free Voice Interface) ──────────────────────
+    from brain.speech.audio_capture import AudioRecorder
+    from brain.speech.hotkey import GlobalHotkeyListener
+    from brain.speech.stt import STTEngine
+    from brain.speech.voice_pipeline import VoicePipeline
+    from brain.speech.wakeword import WakeWordDetector
 
-    # ── Bridge event handlers ────────────────────────────────────────────────────
-    async def handle_activate(event: dict) -> None:
-        logger.info("Activation: %s", event.get("source"))
-        await bridge.set_state("LISTENING", reason="activation")
+    stt_engine = None
+    if config.stt.enabled:
+        stt_engine = STTEngine(
+            model_size=config.stt.model_size,
+            device=config.stt.device,
+            compute_type=config.stt.compute_type,
+            language=config.stt.language,
+        )
 
-    bridge.on("activate", handle_activate)
+    hotkey_listener = None
+    if config.hotkey.enabled:
+        hotkey_listener = GlobalHotkeyListener(key=config.hotkey.key)
+
+    wakeword_detector = None
+    if config.wake_word.enabled:
+        wakeword_detector = WakeWordDetector(
+            phrase=config.wake_word.phrase,
+            custom_model_path=config.wake_word.custom_model_path,
+        )
+
+    recorder = AudioRecorder()
+
+    voice_pipeline = VoicePipeline(
+        agent=agent,
+        bridge=bridge,
+        stt=stt_engine,
+        tts=tts,
+        recorder=recorder,
+        hotkey=hotkey_listener,
+        wakeword=wakeword_detector,
+    )
+    voice_pipeline.start()
+
+    conversation_history = voice_pipeline.conversation_history
 
     # ── FastAPI app (single server, single port) ─────────────────────────────────
     app = FastAPI(title="Senjougahara Brain", docs_url=None, redoc_url=None)
 
     @app.get("/health")
     async def health() -> JSONResponse:
-        return JSONResponse({"status": "ready", "error": None})
+        return JSONResponse({
+            "status": "ready",
+            "voice_enabled": config.stt.enabled,
+            "hotkey": config.hotkey.key if config.hotkey.enabled else None,
+            "wake_word": config.wake_word.phrase if config.wake_word.enabled else None,
+            "error": None,
+        })
 
     @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:
@@ -191,8 +230,10 @@ async def main() -> None:
 
     await bridge.set_state("IDLE", reason="brain ready")
     logger.info(
-        "READY. health=http://127.0.0.1:%d/health  chat=http://127.0.0.1:%d/chat",
-        api_port, api_port,
+        "READY. Voice Pipeline active (Hotkey: '%s' | Wake word: %s). health=http://127.0.0.1:%d/health",
+        config.hotkey.key if config.hotkey.enabled else "disabled",
+        config.wake_word.phrase if config.wake_word.enabled else "disabled",
+        api_port,
     )
 
     # Graceful shutdown on Ctrl+C (Windows: only SIGINT is reliable)
@@ -203,6 +244,7 @@ async def main() -> None:
     signal.signal(signal.SIGINT, _shutdown)
 
     await server.serve()
+    voice_pipeline.stop()
     await bridge.disconnect()
     logger.info("Brain shutdown complete.")
 
