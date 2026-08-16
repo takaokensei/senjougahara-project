@@ -127,7 +127,7 @@ class AgentLoop:
         return StructuredResponse(
             text="I seem to be going in circles. Could you rephrase that?",
             emotion="confused",
-            animation="shrug",
+            animation="squat",
         )
 
     async def _execute_tool_call(self, tool_call: ToolCall) -> dict[str, Any]:

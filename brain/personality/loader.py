@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/personality/loader.py
 
 The ONLY module that reads personality YAML profiles and produces system prompts.
@@ -67,7 +67,7 @@ class PersonalityProfile:
                 f"Speech style: {self.speech_style}\n"
                 f"Always respond ONLY with a JSON object matching this exact schema:\n"
                 f'{{"text": "your spoken reply", "emotion": "neutral|happy|sad|angry|surprised|confused|annoyed|relaxed", '
-                f'"animation": "idle|greeting|nod|shrug|thinking|goodbye|surprised|angry_gesture", "priority": "low|normal|high|urgent"}}\n'
+                f'"animation": "wave|greeting|peace|cheer|shoot|spin|pose|squat|show_body", "priority": "low|normal|high|urgent"}}\n'
                 f"\nCritical rules:\n"
                 f"- text: what you will say aloud (natural, conversational, in character)\n"
                 f"- emotion: the facial expression that fits the response\n"

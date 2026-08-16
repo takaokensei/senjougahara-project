@@ -199,6 +199,28 @@ function setupBeforeUnload() {
 
 let subtitleTimeout: number | null = null;
 
+// ---------------------------------------------------------------------------
+// Animation name resolver
+// Maps legacy / unavailable names to the 9 VRoid clips that exist on disk.
+// If the resolved name is empty-string, no playAnimation() call is made.
+// ---------------------------------------------------------------------------
+const ANIMATION_FALLBACKS: Record<string, string> = {
+  // legacy → available
+  nod:           'wave',     // acknowledgement → greeting wave
+  shrug:         'squat',    // expressive body gesture
+  thinking:      'pose',     // model pose looks contemplative
+  goodbye:       'wave',     // wave goodbye
+  angry_gesture: 'shoot',    // dramatic aiming gesture
+  idle:          '',         // no clip needed, skip
+};
+
+function resolveAnimation(name: string): string {
+  if (name in ANIMATION_FALLBACKS) {
+    return ANIMATION_FALLBACKS[name];
+  }
+  return name;
+}
+
 function showSubtitle(text: string, durationMs?: number): void {
   const subtitleEl = document.getElementById('subtitle-overlay');
   if (!subtitleEl) return;
@@ -338,8 +360,11 @@ function setupIPCListeners() {
       if (command.emotion) {
         vrmRenderer.setEmotion(command.emotion);
       }
-      if (command.animation && command.animation !== 'idle') {
-        vrmRenderer.playAnimation(command.animation);
+      if (command.animation) {
+        const resolved = resolveAnimation(command.animation);
+        if (resolved) {
+          vrmRenderer.playAnimation(resolved);
+        }
       }
 
       // Display Portuguese subtitle
@@ -364,7 +389,7 @@ function setupIPCListeners() {
           break;
         case 'THINKING':
           vrmRenderer.setEmotion('relaxed');
-          vrmRenderer.playAnimation('thinking');
+          vrmRenderer.playAnimation(resolveAnimation('thinking')); // → 'pose'
           break;
         case 'HAPPY':
           vrmRenderer.setEmotion('happy');
@@ -385,5 +410,6 @@ function setupIPCListeners() {
     }
   });
 }
+
 
 init();
