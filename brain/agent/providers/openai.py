@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/providers/openai.py
 
 OpenAI provider adapter (GPT-4o / GPT-4o-mini).
@@ -94,4 +94,29 @@ class OpenAIProvider(BaseLLMProvider):
             "role": "tool",
             "tool_call_id": call_id,
             "content": content,
+        }
+
+    def format_assistant_turn(self, response: LLMResponse) -> dict[str, Any] | None:
+        """
+        Build the OpenAI-format assistant message with tool_calls.
+        OpenAI requires the assistant turn to include the tool_call descriptors
+        before the corresponding 'tool' role messages with results.
+        """
+        if not response.tool_calls:
+            return None
+        tool_calls_payload = [
+            {
+                "id": tc.call_id,
+                "type": "function",
+                "function": {
+                    "name": tc.tool_name,
+                    "arguments": json.dumps(tc.arguments),
+                },
+            }
+            for tc in response.tool_calls
+        ]
+        return {
+            "role": "assistant",
+            "content": response.text or None,
+            "tool_calls": tool_calls_payload,
         }

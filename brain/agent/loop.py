@@ -23,7 +23,11 @@ import logging
 from typing import Any
 
 from brain.agent.providers.base import BaseLLMProvider, LLMResponse, ToolCall
-from brain.agent.structured_output import StructuredResponse, parse_structured_response
+from brain.agent.structured_output import (
+    StructuredResponse,
+    ensure_portuguese_translation,
+    parse_structured_response,
+)
 from brain.permissions.emergency import EmergencyController
 from brain.permissions.policy import PermissionEngine
 from brain.personality.learner import extract_style_signals
@@ -89,7 +93,8 @@ class AgentLoop:
                 logger.debug("Agent final response: %d chars", len(text))
                 if text:
                     messages.append({"role": "assistant", "content": text})
-                return parse_structured_response(text)
+                structured = parse_structured_response(text)
+                return await ensure_portuguese_translation(structured)
 
             # Execute tool calls sequentially
             tool_result_messages: list[dict[str, Any]] = []
@@ -104,31 +109,24 @@ class AgentLoop:
                 )
                 tool_result_messages.append(tool_result_msg)
 
-            # Append assistant tool-use turn
-            if response.raw is not None and hasattr(response.raw, 'content'):
-                assistant_content = []
-                for block in response.raw.content:
-                    if hasattr(block, 'type'):
-                        if block.type == 'text':
-                            assistant_content.append({"type": "text", "text": block.text})
-                        elif block.type == 'tool_use':
-                            assistant_content.append({
-                                "type": "tool_use",
-                                "id": block.id,
-                                "name": block.name,
-                                "input": block.input,
-                            })
-                if assistant_content:
-                    messages.append({"role": "assistant", "content": assistant_content})
+            # Append assistant tool-use turn via the provider's native serializer.
+            # This replaces the previous Anthropic-SDK-specific block that inspected
+            # response.raw — which silently did nothing for Ollama/OpenAI/Gemini
+            # because their `raw` objects don't have a `.content` attribute.
+            assistant_msg = self._provider.format_assistant_turn(response)
+            if assistant_msg is not None:
+                messages.append(assistant_msg)
 
             messages.extend(tool_result_messages)
 
         logger.warning("Agent exceeded max tool iterations (%d).", _MAX_TOOL_ITERATIONS)
-        return StructuredResponse(
+        fallback = StructuredResponse(
             text="I seem to be going in circles. Could you rephrase that?",
             emotion="confused",
             animation="squat",
         )
+        return await ensure_portuguese_translation(fallback)
+
 
     async def _execute_tool_call(self, tool_call: ToolCall) -> dict[str, Any]:
         """Execute a single tool call after permission engine approval."""

@@ -31,6 +31,10 @@ class MockExtractionLLMProvider(BaseLLMProvider):
     def format_tool_result(self, call_id, tool_name, result, is_error=False):
         return {"role": "tool", "content": str(result), "tool_call_id": call_id}
 
+    def format_assistant_turn(self, response: LLMResponse):
+        return None
+
+
 
 class TestMemoryExtractor:
     def test_parse_extracted_facts_json(self):

@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/providers/base.py
 
 Base protocol / abstract class for LLM providers.
@@ -83,5 +83,20 @@ class BaseLLMProvider(ABC):
         """
         Format a tool execution result as a message dict for the next completion call.
         Each provider uses slightly different shapes for tool result messages.
+        """
+        ...
+
+    @abstractmethod
+    def format_assistant_turn(self, response: "LLMResponse") -> dict[str, Any] | None:
+        """
+        Format the assistant's tool-use turn (text + tool_calls) as a message dict
+        to append to conversation history, in this provider's expected shape.
+
+        This must be appended to the messages list BEFORE the tool_result messages
+        for the conversation history to be coherent. Return None if there are no
+        tool calls to record (i.e., it was a plain text response with no tool use).
+
+        Each provider implements this using its own native message format rather than
+        inspecting response.raw (which has different shapes per SDK).
         """
         ...

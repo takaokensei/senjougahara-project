@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/providers/anthropic.py
 
 Anthropic Claude provider adapter.
@@ -107,3 +107,41 @@ class AnthropicProvider(BaseLLMProvider):
                 }
             ],
         }
+
+    def format_assistant_turn(self, response: LLMResponse) -> dict[str, Any] | None:
+        """
+        Build the Anthropic assistant message from the SDK response object.
+        Anthropic requires the exact content blocks (text + tool_use) to be
+        replayed as an assistant turn before the tool_result messages.
+        """
+        if not response.tool_calls:
+            return None
+        # Prefer reconstructing from the raw SDK object (preserves exact block order)
+        if response.raw is not None and hasattr(response.raw, "content"):
+            content = []
+            for block in response.raw.content:
+                if hasattr(block, "type"):
+                    if block.type == "text":
+                        content.append({"type": "text", "text": block.text})
+                    elif block.type == "tool_use":
+                        content.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input,
+                        })
+            if content:
+                return {"role": "assistant", "content": content}
+        # Fallback: reconstruct from normalised ToolCall list
+        content = []
+        if response.text:
+            content.append({"type": "text", "text": response.text})
+        for tc in response.tool_calls:
+            content.append({
+                "type": "tool_use",
+                "id": tc.call_id,
+                "name": tc.tool_name,
+                "input": tc.arguments,
+            })
+        return {"role": "assistant", "content": content} if content else None
+

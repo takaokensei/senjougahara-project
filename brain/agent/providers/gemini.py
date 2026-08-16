@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/agent/providers/gemini.py
 
 Google Gemini provider adapter.
@@ -62,3 +62,12 @@ class GeminiProvider(BaseLLMProvider):
             "role": "user",
             "content": f"[Tool Result for {tool_name}]: {content}",
         }
+
+    def format_assistant_turn(self, response: LLMResponse) -> dict[str, Any] | None:
+        """
+        Gemini's generativeai adapter used here doesn't support tool-call history
+        in the same way as OpenAI/Anthropic — tool calls are not surfaced via the
+        normalised ToolCall list in the current implementation. Return None to
+        skip inserting an assistant turn (preserving the current behaviour).
+        """
+        return None

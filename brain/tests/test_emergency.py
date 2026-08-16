@@ -35,6 +35,16 @@ class MockToolLLMProvider(BaseLLMProvider):
     def format_tool_result(self, call_id, tool_name, result, is_error=False):
         return {"role": "tool", "content": str(result), "tool_call_id": call_id}
 
+    def format_assistant_turn(self, response: LLMResponse):
+        if not response.tool_calls:
+            return None
+        return {
+            "role": "assistant",
+            "content": response.text or "",
+            "tool_calls": [{"id": tc.call_id, "type": "function", "function": {"name": tc.tool_name, "arguments": tc.arguments}} for tc in response.tool_calls],
+        }
+
+
 
 class TestEmergencyController:
     def test_emergency_controller_lifecycle(self):
