@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/permissions/policy.py
 
 Risk-tiered permission engine.
@@ -75,6 +75,7 @@ class PermissionEngine:
         confirmation_callback: Callable[[str, str, str], Coroutine[Any, Any, bool]] | None = None,
         confirmation_timeout_seconds: float = 30.0,
         medium_risk_requires_confirmation: bool = False,
+        authority_learner: Any | None = None,
     ) -> None:
         """
         Args:
@@ -85,12 +86,14 @@ class PermissionEngine:
                 If None, HIGH-risk calls are auto-denied in Phase 1.
             confirmation_timeout_seconds: How long to wait for confirmation before cancelling.
             medium_risk_requires_confirmation: If True, MEDIUM tools also require confirmation.
+            authority_learner: Optional AuthorityLearner instance to record decisions.
         """
         self._audit_log_path = audit_log_path
         self._policy_overrides: dict[str, str] = policy_overrides or {}
         self._confirmation_callback = confirmation_callback
         self._confirmation_timeout = confirmation_timeout_seconds
         self._medium_requires_confirm = medium_risk_requires_confirmation
+        self._learner = authority_learner
         audit_log_path.parent.mkdir(parents=True, exist_ok=True)
 
     def effective_risk(self, tool_name: str, base_risk: str) -> str:
@@ -158,6 +161,15 @@ class PermissionEngine:
 
         outcome = "confirmed" if confirmed else "denied_by_user"
         self._audit(tool_name, risk, arguments, outcome)
+
+        if self._learner is not None:
+            try:
+                from brain.permissions.learning import infer_action_category
+                cat = infer_action_category(tool_name)
+                await self._learner.record_decision(cat, tool_name, confirmed)
+            except Exception as exc:
+                logger.error("AuthorityLearner error: %s", exc)
+
         return confirmed
 
     def _audit(self, tool_name: str, risk: str, arguments: dict[str, Any], outcome: str) -> None:

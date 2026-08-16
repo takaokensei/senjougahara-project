@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/memory/db.py
 
 SQLite connection and schema management for the memory module.
@@ -40,9 +40,20 @@ CREATE TABLE IF NOT EXISTS conversation_log (
     summary_batch_id  INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS approval_patterns (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    action_category       TEXT NOT NULL,
+    tool_name             TEXT NOT NULL,
+    consecutive_approvals INTEGER NOT NULL DEFAULT 0,
+    last_approval_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    suggestion_sent       INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(action_category, tool_name)
+);
+
 CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(key);
 CREATE INDEX IF NOT EXISTS idx_prefs_key ON preferences(key);
 CREATE INDEX IF NOT EXISTS idx_log_timestamp ON conversation_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_approval_patterns_lookup ON approval_patterns(action_category, tool_name);
 """
 
 

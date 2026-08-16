@@ -76,6 +76,7 @@ async def main() -> None:
 
     # ── Permission & Emergency Engine ────────────────────────────────────────────
     from brain.permissions.emergency import EmergencyController
+    from brain.permissions.learning import AuthorityLearner
     from brain.permissions.policy import PermissionEngine, load_policy_overrides
     policy_yaml = Path(__file__).parent / "permissions" / "policy.yaml"
     policy_overrides = load_policy_overrides(policy_yaml)
@@ -86,11 +87,13 @@ async def main() -> None:
         )
 
     emergency_controller = EmergencyController()
+    authority_learner = AuthorityLearner(db_path=config.appdata_dir / "memory.db")
 
     permission_engine = PermissionEngine(
         audit_log_path=config.appdata_dir / "logs" / "audit.jsonl",
         policy_overrides=policy_overrides,
         confirmation_callback=confirmation_callback,
+        authority_learner=authority_learner,
     )
 
     # ── Agent loop ───────────────────────────────────────────────────────────────
@@ -216,6 +219,21 @@ async def main() -> None:
     async def emergency_reset() -> JSONResponse:
         emergency_controller.reset()
         return JSONResponse({"status": "ok", "emergency": emergency_controller.status})
+
+    @app.get("/permissions/suggestions")
+    async def get_permission_suggestions() -> JSONResponse:
+        suggestions = await authority_learner.get_pending_suggestions()
+        return JSONResponse({"suggestions": suggestions})
+
+    @app.post("/permissions/suggestions/{pattern_id}/accept")
+    async def accept_permission_suggestion(pattern_id: int) -> JSONResponse:
+        pattern = await authority_learner.get_pattern(pattern_id)
+        if not pattern:
+            return JSONResponse({"error": "Pattern not found"}, status_code=404)
+        tool_name = pattern["tool_name"]
+        permission_engine._policy_overrides[tool_name] = "LOW"
+        await authority_learner.mark_suggestion_sent(pattern_id)
+        return JSONResponse({"status": "promoted", "tool_name": tool_name, "new_tier": "LOW"})
 
     @app.post("/chat")
     async def chat(request: Request) -> JSONResponse:
