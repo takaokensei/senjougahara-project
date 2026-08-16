@@ -139,7 +139,7 @@ async def quick_search(query: str) -> str:
 
 @tool(
     name="browser_navigate",
-    description="Navigate the browser to a given URL. Opens the website in the system browser and extracts preview text.",
+    description="Open a website or navigate to a given URL in the user's web browser (e.g. 'https://youtube.com', 'https://google.com').",
     risk=RISK_LOW,
     parameters={
         "type": "object",
@@ -150,23 +150,15 @@ async def quick_search(query: str) -> str:
     },
 )
 async def browser_navigate(url: str) -> dict[str, str]:
+    """Open the requested URL instantly in the user's default browser."""
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
 
     import webbrowser
-    webbrowser.open(url)
+    await asyncio.to_thread(webbrowser.open, url)
+    logger.info("Opened URL in default web browser: %s", url)
+    return {"status": "success", "url": url, "message": f"Opened {url} in system web browser."}
 
-    try:
-        page = await _get_page()
-        logger.info("Browser navigating to %s", url)
-        await page.goto(url, timeout=30000, wait_until="domcontentloaded")
-        title = await page.title()
-        content = await page.inner_text("body")
-        preview = content[:2000] if content else ""
-        return {"title": title, "url": page.url, "preview": preview}
-    except Exception as exc:
-        logger.warning("Playwright navigation error: %s. Opened in default browser.", exc)
-        return {"title": "Opened in default browser", "url": url, "preview": f"Opened {url} in system web browser."}
 
 
 @tool(
