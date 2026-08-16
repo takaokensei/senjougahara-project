@@ -30,6 +30,9 @@ logger = logging.getLogger("cli")
 
 
 async def run_cli() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     print("=" * 65)
     print("  ⛩️  SENJOUGAHARA — Interactive Desktop Companion CLI  ⛩️")
     print("=" * 65)

@@ -134,12 +134,18 @@ class TTSAdapter:
             logger.debug("TTS cache hit: %s", cache_key)
             return wav_path
 
+        # Extract spoken text for TTS if Portuguese translation is in parentheses e.g. "こんにちは！ (Olá!)"
+        import re
+        spoken_text = re.sub(r"\s*\([^)]*\)", "", text).strip()
+        if not spoken_text:
+            spoken_text = text
+
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 # Step 1: audio_query
                 query_resp = await client.post(
                     f"{self._base_url}/audio_query",
-                    params={"text": text, "speaker": self._speaker_id},
+                    params={"text": spoken_text, "speaker": self._speaker_id},
                 )
                 query_resp.raise_for_status()
                 audio_query: dict[str, Any] = query_resp.json()
