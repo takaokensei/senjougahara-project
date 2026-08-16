@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tests/test_voice_pipeline.py
 
 Integration tests for the Voice Pipeline:
@@ -60,9 +60,11 @@ class TestVoicePipelineIntegration:
             mock_recorder.record_async = AsyncMock(return_value=b"DUMMY_WAV_BYTES_16KHZ")
 
             mock_tts = MagicMock(spec=TTSAdapter)
+            test_wav = tmp_path / "test.wav"
+            test_wav.write_bytes(b"RIFFdummybytes123456")
             mock_tts.speak = AsyncMock(return_value={
                 "audio_url": "http://127.0.0.1:8766/audio/test.wav",
-                "wav_path": str(tmp_path / "test.wav"),
+                "wav_path": str(test_wav),
             })
 
             pipeline = VoicePipeline(
@@ -89,6 +91,9 @@ class TestVoicePipelineIntegration:
                 audio_url="http://127.0.0.1:8766/audio/test.wav",
                 priority="normal",
             )
+            mock_bridge.send_error.assert_not_called()
+            for call in mock_bridge.set_state.call_args_list:
+                assert call.args and call.args[0] != "ERROR", f"set_state('ERROR') was unexpectedly called due to error in pipeline: {call}"
             assert len(pipeline.conversation_history) == 2
             assert pipeline.conversation_history[0]["content"] == "Olá Senjougahara"
             assert pipeline.conversation_history[1]["content"] == "こんにちは。 (Olá.)"

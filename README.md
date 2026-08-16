@@ -4,7 +4,7 @@
 
 A persistent 3D VRM anime character lives on your desktop as a transparent, always-on-top window. Activate her via a global hotkey or wake word, speak a request, and she performs real actions on your computer while responding with natural speech, lip-synced animation, and contextual expressions.
 
-> **Status:** Phase 1 (text-only) — see [Development Roadmap](#development-roadmap)
+> **Status:** Phase 2 (Voice & Hands-Free Interaction) — see [Development Roadmap](#development-roadmap)
 
 ---
 
@@ -76,7 +76,7 @@ python -m brain.main
 npm --prefix avatar run start:electron
 ```
 
-### 4. Talk to Senjougahara (Voice Mode — Primary)
+### 5. Talk to Senjougahara (Voice Mode — Primary)
 
 1. Press the global hotkey: **`Right Ctrl`** (works anywhere in Windows).
 2. The avatar transitions to **`LISTENING`** state.
@@ -105,9 +105,9 @@ wake_word:
 
 | Phase | Status | Feature |
 |---|---|---|
-| **1** | 🔧 In Progress | Text-only: agent loop + personality + 3 tools + avatar + TTS |
-| **2** | ⏳ Planned | Voice input: hotkey + faster-whisper STT + openWakeWord |
-| **3** | ⏳ Planned | Desktop control: pywinauto + Playwright + filesystem + terminal + screenshots |
+| **1** | ✅ Completed | Text-only: agent loop + personality + 3 tools + avatar + TTS |
+| **2** | ✅ Completed | Voice input: hotkey + faster-whisper STT + openWakeWord + VoicePipeline |
+| **3** | 🔧 In Progress | Desktop control: pywinauto + Playwright + filesystem + terminal + screenshots |
 | **4** | ⏳ Planned | Advanced avatar: full emotion/gesture set, idle micro-behaviors, better lip-sync |
 | **5** | ⏳ Planned | Memory: SQLite facts/preferences/conversation log |
 | **6** | ⏳ Planned | Advanced autonomy: proactive suggestions (opt-in), scheduled tasks |
