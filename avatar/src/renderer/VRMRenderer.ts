@@ -7,14 +7,15 @@ import { LocomotionController } from './controllers/LocomotionController.js';
 
 // Fixed camera configuration for the portrait waist-up view
 const FIXED_CAMERA = {
-  fov: 28,
+  fov: 42,
   posX: 0,
-  posY: 1.22,
-  posZ: -0.75,
+  posY: 1.28,
+  posZ: -1.4,
   lookX: 0,
-  lookY: 1.18,
+  lookY: 1.10,
   lookZ: 0,
 } as const;
+
 
 export class VRMRenderer {
   private scene: THREE.Scene;
