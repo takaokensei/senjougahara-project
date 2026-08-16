@@ -1,4 +1,4 @@
-﻿"""
+"""
 brain/tools/desktop_control.py
 
 Windows desktop automation tools using pywinauto (Win32 + UIA backends).
@@ -154,3 +154,111 @@ async def type_text(text: str) -> str:
     except Exception as exc:
         logger.error("Failed to type text: %s", exc)
         raise RuntimeError(f"Could not type text: {exc}") from exc
+
+
+@tool(
+    name="get_clipboard",
+    description="Get the current text content from the Windows clipboard.",
+    risk=RISK_LOW,
+    parameters={
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+)
+async def get_clipboard() -> str:
+    """Read text from the clipboard."""
+    try:
+        import pyperclip
+        text = await asyncio.to_thread(pyperclip.paste)
+        return text or "(clipboard is empty)"
+    except Exception as exc:
+        logger.error("Failed to read clipboard: %s", exc)
+        raise RuntimeError(f"Could not read clipboard: {exc}") from exc
+
+
+@tool(
+    name="set_clipboard",
+    description="Copy text to the Windows clipboard.",
+    risk=RISK_LOW,
+    parameters={
+        "type": "object",
+        "properties": {
+            "text": {
+                "type": "string",
+                "description": "Text to copy to the clipboard.",
+            },
+        },
+        "required": ["text"],
+    },
+)
+async def set_clipboard(text: str) -> str:
+    """Write text to the clipboard."""
+    try:
+        import pyperclip
+        await asyncio.to_thread(pyperclip.copy, text)
+        return f"Copied {len(text)} characters to clipboard."
+    except Exception as exc:
+        logger.error("Failed to write to clipboard: %s", exc)
+        raise RuntimeError(f"Could not write to clipboard: {exc}") from exc
+
+
+@tool(
+    name="press_hotkey",
+    description="Simulate pressing a keyboard shortcut (e.g. ['ctrl', 'c'], ['alt', 'f4'], ['volume_up'], ['volume_down'], ['volume_mute'], ['play_pause']).",
+    risk=RISK_MEDIUM,
+    parameters={
+        "type": "object",
+        "properties": {
+            "keys": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of keys to press simultaneously (e.g. ['ctrl', 'v'] or ['alt', 'tab']).",
+            },
+        },
+        "required": ["keys"],
+    },
+)
+async def press_hotkey(keys: list[str]) -> str:
+    """Send key combination or multimedia keypress."""
+    try:
+        import keyboard
+        combo = "+".join(keys)
+        await asyncio.to_thread(keyboard.send, combo)
+        logger.info("Pressed hotkey combo: %s", combo)
+        return f"Pressed hotkey combo: {combo}"
+    except Exception as exc:
+        logger.error("Failed to press hotkey %s: %s", keys, exc)
+        raise RuntimeError(f"Could not press hotkey: {exc}") from exc
+
+
+@tool(
+    name="get_system_info",
+    description="Get current Windows system status including active window title, platform version, and time.",
+    risk=RISK_LOW,
+    parameters={
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+)
+async def get_system_info() -> dict[str, Any]:
+    """Return system information."""
+    import platform
+    from datetime import datetime, timezone
+
+    active_title = ""
+    try:
+        import pygetwindow as gw  # type: ignore[import]
+        active_win = gw.getActiveWindow()
+        if active_win:
+            active_title = active_win.title
+    except Exception:
+        pass
+
+    return {
+        "os": f"{platform.system()} {platform.release()}",
+        "machine": platform.machine(),
+        "active_window": active_title or "(none)",
+        "current_time_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+    }
