@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -130,12 +131,22 @@ class TTSAdapter:
         ).hexdigest()[:16]
         wav_path = self._cache_dir / f"{cache_key}.wav"
 
-        if wav_path.exists():
-            logger.debug("TTS cache hit: %s", cache_key)
-            return wav_path
+        if self._base_url.lower() in ("edge-tts", "edge", "edge_tts", "auto"):
+            try:
+                import edge_tts
+                clean_text = re.sub(r"\s*\([^)]*\)", "", text).strip() or text
+                mp3_path = self._cache_dir / f"{cache_key}.mp3"
+                if mp3_path.exists():
+                    return mp3_path
+                voice_name = self._speaker_id if "Neural" in self._speaker_id else "pt-BR-FranciscaNeural"
+                communicate = edge_tts.Communicate(clean_text, voice_name)
+                await communicate.save(str(mp3_path))
+                logger.info("Edge-TTS synthesized (%s): %d chars -> %s", voice_name, len(text), mp3_path.name)
+                return mp3_path
+            except Exception as edge_exc:
+                logger.warning("Edge-TTS failed: %s. Falling back to HTTP API.", edge_exc)
 
         # Extract spoken text for TTS if Portuguese translation is in parentheses e.g. "こんにちは！ (Olá!)"
-        import re
         spoken_text = re.sub(r"\s*\([^)]*\)", "", text).strip()
         if not spoken_text:
             spoken_text = text

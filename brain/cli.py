@@ -123,12 +123,19 @@ async def run_cli() -> None:
                 priority=response.priority.value,
             )
 
-            # Play local WAV file via Windows audio output for direct CLI feedback
+            # Play local audio file (WAV or MP3) via Windows audio output for direct CLI feedback
             wav_path = audio_res.get("wav_path")
             if wav_path and Path(wav_path).exists():
                 try:
-                    import winsound
-                    winsound.PlaySound(str(wav_path), winsound.SND_FILENAME | winsound.SND_ASYNC)
+                    p = Path(wav_path)
+                    if p.suffix.lower() == ".mp3":
+                        import subprocess
+                        abs_p = str(p.resolve())
+                        cmd = f"Add-Type -AssemblyName PresentationCore; $p = New-Object System.Windows.Media.MediaPlayer; $p.Open('{abs_p}'); $p.Play(); Start-Sleep -Seconds 5"
+                        subprocess.Popen(["powershell", "-c", cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    else:
+                        import winsound
+                        winsound.PlaySound(str(p), winsound.SND_FILENAME | winsound.SND_ASYNC)
                 except Exception as play_exc:
                     logger.debug("CLI audio playback error: %s", play_exc)
 
