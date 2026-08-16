@@ -94,3 +94,33 @@ class TestParseStructuredResponse:
         d = r.model_dump()
         assert d["text"] == "Hello"
         assert d["emotion"] == "happy"
+
+    def test_multiple_parentheses_sanitized_to_first(self, caplog):
+        # Reproduces the real bug with duplicate meta-explanatory translation note
+        raw = '別に…関心の対象じゃないからな。(Não me importo com isso.) ("別に…関心の対象じゃないからな。" 译为 "其实…这不关我的事。")'
+        r = StructuredResponse(text=raw)
+        assert r.text.count("(") == 1
+        assert "Não me importo com isso." in r.text
+        assert "译为" not in r.text
+        assert "Multiple parenthetical groups detected" in caplog.text
+
+    def test_cjk_in_parentheses_triggers_warning(self, caplog):
+        # Reproduces Chinese translation leakage inside parentheses
+        raw = '別に…関心の対象じゃないからな。(其实我没在意……这不关我的事。)'
+        r = StructuredResponse(text=raw)
+        assert "Detected non-Portuguese (CJK) text inside translation parentheses" in caplog.text
+        assert r.text.count("(") <= 1
+
+    def test_bilingual_fields_combined(self):
+        r = StructuredResponse(
+            japanese_text="了解したわ。",
+            portuguese_translation="Entendido.",
+            emotion=Emotion.NEUTRAL,
+        )
+        assert r.text == "了解したわ。 (Entendido.)"
+
+    def test_parse_json_with_separate_bilingual_fields(self):
+        raw = '{"japanese_text": "こんにちは。", "portuguese_translation": "Olá.", "emotion": "happy", "animation": "greeting"}'
+        r = parse_structured_response(raw)
+        assert r.text == "こんにちは。 (Olá.)"
+        assert r.emotion == Emotion.HAPPY

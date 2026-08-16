@@ -15,6 +15,7 @@ The agent loop uses this module to parse and validate the response before acting
 from __future__ import annotations
 
 import json
+import logging
 import re
 from enum import Enum
 from typing import Any
@@ -41,6 +42,71 @@ class Priority(str, Enum):
     URGENT = "urgent"
 
 
+logger = logging.getLogger(__name__)
+
+# Heuristic CJK character ranges: Chinese/Japanese Kanji and Hanzi (\u4e00-\u9fff, \u3400-\u4dbf, etc.)
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf\uF900-\uFAFF]")
+_PAREN_GROUPS_RE = re.compile(r"\(([^)]*)\)")
+
+
+def _translate_to_pt(text: str) -> str:
+    """Fast auto-translation of Japanese text to Brazilian Portuguese."""
+    import httpx
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {"client": "gtx", "sl": "ja", "tl": "pt", "dt": "t", "q": text}
+        r = httpx.get(url, params=params, timeout=2.5)
+        if r.status_code == 200:
+            return "".join([p[0] for p in r.json()[0] if p[0]]).strip()
+    except Exception:
+        pass
+    return ""
+
+
+def sanitize_bilingual_text(raw_text: str) -> str:
+    """
+    Sanitize text to guarantee at most ONE (Portuguese) translation parenthesis,
+    and prevent Chinese/CJK translation leakage.
+    
+    1. If multiple parentheses groups exist (e.g. `Frase (trad) ("..." 译为 "...")`):
+       Keep only the base text and the first parenthetical group, discarding trailing meta-notes.
+    2. Check for CJK characters in the translation parenthesis:
+       If CJK is found, log a clear warning and auto-correct using _translate_to_pt.
+    """
+    text = raw_text.strip()
+    matches = list(_PAREN_GROUPS_RE.finditer(text))
+    if not matches:
+        return text
+
+    first_match = matches[0]
+    base_japanese = text[:first_match.start()].strip()
+    first_paren_content = first_match.group(1).strip()
+
+    if len(matches) > 1:
+        extra_groups = [m.group(0) for m in matches[1:]]
+        logger.warning(
+            "Multiple parenthetical groups detected in response (%d groups). Discarding extra meta-notes %s from text: '%s'",
+            len(matches), extra_groups, text
+        )
+
+    if _CJK_RE.search(first_paren_content) or "译" in first_paren_content or "中文" in first_paren_content:
+        logger.warning(
+            "Detected non-Portuguese (CJK) text inside translation parentheses: '%s' in text: '%s'. Auto-correcting to Portuguese.",
+            first_paren_content, text
+        )
+        if base_japanese:
+            auto_pt = _translate_to_pt(base_japanese)
+            if auto_pt:
+                first_paren_content = auto_pt
+
+    if base_japanese and first_paren_content:
+        return f"{base_japanese} ({first_paren_content})"
+    elif base_japanese:
+        return base_japanese
+    else:
+        return first_paren_content
+
+
 class StructuredResponse(BaseModel):
     """
     The structured output every LLM response must conform to.
@@ -61,17 +127,33 @@ class StructuredResponse(BaseModel):
 
     @model_validator(mode="after")
     def populate_or_validate_text(self) -> StructuredResponse:
-        if not self.text or not self.text.strip():
-            if self.japanese_text and self.portuguese_translation:
+        # If japanese_text is set, sanitize or auto-translate the Portuguese translation
+        if self.japanese_text:
+            has_cjk = bool(self.portuguese_translation and _CJK_RE.search(self.portuguese_translation))
+            if not self.portuguese_translation or has_cjk or (self.portuguese_translation and "译" in self.portuguese_translation):
+                if has_cjk:
+                    logger.warning(
+                        "Detected non-Portuguese (CJK) text in portuguese_translation field: '%s'. Auto-correcting.",
+                        self.portuguese_translation
+                    )
+                auto_pt = _translate_to_pt(self.japanese_text)
+                if auto_pt:
+                    self.portuguese_translation = auto_pt
+
+            if self.portuguese_translation:
                 self.text = f"{self.japanese_text} ({self.portuguese_translation})"
-            elif self.japanese_text:
+            else:
                 self.text = self.japanese_text
-            elif self.portuguese_translation:
+
+        elif not self.text or not self.text.strip():
+            if self.portuguese_translation:
                 self.text = self.portuguese_translation
             else:
                 raise ValueError("text must not be blank")
         else:
-            self.text = self.text.strip()
+            # Defensively sanitize any multiple parentheses or CJK in text
+            self.text = sanitize_bilingual_text(self.text)
+
         return self
 
     @field_validator("emotion", mode="before")
