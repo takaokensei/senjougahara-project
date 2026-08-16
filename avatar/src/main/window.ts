@@ -5,6 +5,10 @@ import * as path from 'path';
 let mainWindow: BrowserWindowType | null = null;
 let isNormalMode = true;
 let isRecreatingWindow = false;
+let cursorPollInterval: NodeJS.Timeout | null = null;
+let currentCharacterBounds: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+let isCurrentlyIgnoringMouse = true;
+let isEmergencyInteractivityForced = false;
 
 export function getMainWindow(): BrowserWindowType | null {
   return mainWindow;
@@ -12,6 +16,64 @@ export function getMainWindow(): BrowserWindowType | null {
 
 export function isRecreating(): boolean {
   return isRecreatingWindow;
+}
+
+export function updateCharacterBounds(bounds: { x: number; y: number; width?: number; height?: number }): void {
+  const halfWidth = (bounds.width ?? 280) / 2;
+  const halfHeight = (bounds.height ?? 480) / 2;
+  currentCharacterBounds = {
+    minX: bounds.x - halfWidth,
+    maxX: bounds.x + halfWidth,
+    minY: bounds.y - halfHeight,
+    maxY: bounds.y + halfHeight,
+  };
+}
+
+export function startCursorPolling(): void {
+  stopCursorPolling();
+  if (!isNormalMode) return;
+
+  cursorPollInterval = setInterval(() => {
+    if (!mainWindow || isEmergencyInteractivityForced) {
+      return;
+    }
+
+    try {
+      if (typeof screen.getCursorScreenPoint !== 'function') return;
+      const cursor = screen.getCursorScreenPoint();
+      const [winX, winY] = typeof mainWindow.getPosition === 'function' ? mainWindow.getPosition() : [0, 0];
+
+      // Calculate relative coordinates in window
+      const relX = cursor.x - winX;
+      const relY = cursor.y - winY;
+
+      let isOver = false;
+      if (currentCharacterBounds) {
+        isOver =
+          relX >= currentCharacterBounds.minX &&
+          relX <= currentCharacterBounds.maxX &&
+          relY >= currentCharacterBounds.minY &&
+          relY <= currentCharacterBounds.maxY;
+      }
+
+      const shouldIgnore = !isOver;
+      if (shouldIgnore !== isCurrentlyIgnoringMouse) {
+        isCurrentlyIgnoringMouse = shouldIgnore;
+        if (typeof (mainWindow as any).setIgnoreMouseEvents === 'function') {
+          (mainWindow as any).setIgnoreMouseEvents(shouldIgnore, { forward: true });
+        }
+      }
+    } catch {
+      // Safe fallback
+    }
+  }, 40);
+}
+
+export function stopCursorPolling(): void {
+  if (cursorPollInterval) {
+    clearInterval(cursorPollInterval);
+    cursorPollInterval = null;
+  }
 }
 
 export function createWindow(): void {
@@ -39,6 +101,9 @@ export function createWindow(): void {
     }
   }
 
+  isEmergencyInteractivityForced = false;
+  isCurrentlyIgnoringMouse = isNormalMode;
+
   mainWindow = new BrowserWindow({
     x: windowX,
     y: windowY,
@@ -59,6 +124,7 @@ export function createWindow(): void {
 
   if (isNormalMode && typeof (mainWindow as any).setIgnoreMouseEvents === 'function') {
     (mainWindow as any).setIgnoreMouseEvents(true, { forward: true });
+    startCursorPolling();
   }
 
   // Forward renderer console logs to the Node terminal for dev visibility
@@ -91,15 +157,27 @@ export function createWindow(): void {
     console.error(`[AVATAR ERROR] Failed to load renderer page: ${errorDescription} (code: ${errorCode})`);
   });
 
-  // Hotkeys: Ctrl+, (toggle mode) | Ctrl+Shift+I or F12 (toggle DevTools)
+  // Hotkeys: Ctrl+, (toggle mode) | Ctrl+Shift+I/F12 (DevTools) | Ctrl+Alt+I (Emergency Mouse ON) | Ctrl+Home (Reset Position)
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       if (input.key === ',' && input.control) {
         event.preventDefault();
         toggleWindowMode();
-      } else if ((input.control && input.shift && input.key.toLowerCase() === 'i') || input.key === 'F12') {
+      } else if ((input.control && input.shift && input.key?.toLowerCase() === 'i') || input.key === 'F12') {
         event.preventDefault();
         mainWindow?.webContents.toggleDevTools();
+      } else if (input.key?.toLowerCase() === 'i' && input.control && input.alt) {
+        event.preventDefault();
+        isEmergencyInteractivityForced = true;
+        isCurrentlyIgnoringMouse = false;
+        if (typeof (mainWindow as any)?.setIgnoreMouseEvents === 'function') {
+          (mainWindow as any).setIgnoreMouseEvents(false);
+        }
+        console.log('[desktop-mascot-mcp] EMERGENCY: forced mouse events ON (Ctrl+Alt+I)');
+      } else if ((input.key === 'Home' || input.key === 'home') && input.control) {
+        event.preventDefault();
+        mainWindow?.webContents.send('locomotion:reset-to-center');
+        console.log('[desktop-mascot-mcp] Reset character to center (Ctrl+Home)');
       }
     }
   });
@@ -107,6 +185,7 @@ export function createWindow(): void {
   mainWindow.loadFile(path.join(__dirname, '../renderer/VRM.html'));
 
   mainWindow.on('closed', () => {
+    stopCursorPolling();
     mainWindow = null;
   });
 }
@@ -114,6 +193,7 @@ export function createWindow(): void {
 export function toggleWindowMode(): void {
   if (!mainWindow) return;
 
+  stopCursorPolling();
   isNormalMode = !isNormalMode;
   console.log(`[desktop-mascot-mcp] Window mode switched to ${isNormalMode ? 'Normal' : 'Settings'}`);
 

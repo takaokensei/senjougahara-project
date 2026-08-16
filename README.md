@@ -108,6 +108,16 @@ wake_word:
   phrase: hey_jarvis  # or custom model path
 ```
 
+### 7. Avatar Window Shortcuts & Hotkeys
+
+| Shortcut | Action | Description |
+|---|---|---|
+| **`Right Ctrl`** | Voice Activation | Trigger microphone listening (global hotkey) |
+| **`Ctrl+Alt+I`** | Emergency Mouse Override | Force mouse interactivity ON unconditionally if click-through gets locked |
+| **`Ctrl+Home`** | Reset Character Position | Smoothly returns the character to the center of the screen |
+| **`Ctrl+,`** | Toggle Settings Mode | Switch between full-screen transparent mode and framed settings window |
+| **`Ctrl+Shift+I`** / **`F12`** | Toggle DevTools | Open Electron developer tools for debugging |
+
 ---
 
 ## Debug & Text Interfaces (Secondary)

@@ -12,6 +12,7 @@ class FakeWindow {
   setPosition = vi.fn();
   setSize = vi.fn();
   setBounds = vi.fn();
+  setIgnoreMouseEvents = vi.fn();
 
   constructor(options: Record<string, unknown>) {
     FakeWindow.lastOptions = options;
@@ -146,6 +147,26 @@ describe('before-input-event によるモード切替', () => {
     const event = { preventDefault: vi.fn() };
     inputHandler(FakeWindow.instances[0])(event, { type: 'keyDown', key: 'a', control: true });
     expect(FakeWindow.instances).toHaveLength(1);
+  });
+
+  it('Ctrl+Alt+I força mouse events de emergência', async () => {
+    const mod = await loadWindowModule();
+    mod.createWindow();
+    const win = FakeWindow.instances[0];
+    const event = { preventDefault: vi.fn() };
+    inputHandler(win)(event, { type: 'keyDown', key: 'i', control: true, alt: true });
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(win.setIgnoreMouseEvents).toHaveBeenCalledWith(false);
+  });
+
+  it('Ctrl+Home envia evento locomotion:reset-to-center para o renderer', async () => {
+    const mod = await loadWindowModule();
+    mod.createWindow();
+    const win = FakeWindow.instances[0];
+    const event = { preventDefault: vi.fn() };
+    inputHandler(win)(event, { type: 'keyDown', key: 'Home', control: true });
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(win.webContents.send).toHaveBeenCalledWith('locomotion:reset-to-center');
   });
 });
 
