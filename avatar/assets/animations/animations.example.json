@@ -9,15 +9,6 @@
   },
   "animations": [
     {
-      "name": "idle",
-      "file": "idle.vrma",
-      "loop": true,
-      "fadeTime": 0.3,
-      "returnToIdle": false,
-      "category": "idle",
-      "description": "Pose de repouso padrão"
-    },
-    {
       "name": "wave",
       "file": "wave.vrma",
       "loop": false,
@@ -97,96 +88,7 @@
       "returnToIdle": true,
       "category": "gesture",
       "description": "Apresentação de corpo inteiro (VRoid 01)"
-    },
-    {
-      "name": "nod",
-      "file": "nod.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "Aceno afirmativo com a cabeça"
-    },
-    {
-      "name": "shake",
-      "file": "shake.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "Negar com a cabeça"
-    },
-    {
-      "name": "think",
-      "file": "think.vrma",
-      "loop": false,
-      "fadeTime": 0.5,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "Pensativo"
-    },
-    {
-      "name": "clap",
-      "file": "clap.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "gesture",
-      "description": "Bater palmas"
-    },
-    {
-      "name": "angry",
-      "file": "angry.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "Irritada / brava"
-    },
-    {
-      "name": "happy",
-      "file": "happy.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "Feliz"
-    },
-    {
-      "name": "surprised",
-      "file": "surprised.vrma",
-      "loop": false,
-      "fadeTime": 0.2,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "Surpresa"
-    },
-    {
-      "name": "shy",
-      "file": "shy.vrma",
-      "loop": false,
-      "fadeTime": 0.3,
-      "returnToIdle": true,
-      "category": "emotion",
-      "description": "Tímida / envergonhada"
-    },
-    {
-      "name": "walk",
-      "file": "walk.vrma",
-      "loop": true,
-      "fadeTime": 0.3,
-      "returnToIdle": false,
-      "category": "locomotion",
-      "description": "Andando"
-    },
-    {
-      "name": "run",
-      "file": "run.vrma",
-      "loop": true,
-      "fadeTime": 0.2,
-      "returnToIdle": false,
-      "category": "locomotion",
-      "description": "Correndo"
     }
   ]
 }
+
